@@ -3,33 +3,36 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { signIn } from 'next-auth/react';
 
 export default function AdminLogin() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('admin@taskit.co.ke');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
-    // In a real app, this calls a Next.js Server Action that:
-    // 1. Signs in via Supabase Auth
-    // 2. Queries Neon/Prisma to verify profile.role === 'ADMIN'
-    // 3. If not admin, signs them out immediately and blocks access.
-    
-    // Mock routing for UI demonstration:
-    if (email && password) {
-      router.push('/admin');
+    setLoading(true);
+
+    const result = await signIn('credentials', {
+      redirect: false,
+      email,
+      password,
+    });
+
+    if (result?.error) {
+      setError('Invalid email or password');
+      setLoading(false);
     } else {
-      setError('Invalid credentials');
+      router.push('/admin');
     }
   };
 
   return (
     <div className="min-h-screen bg-midnight-950 antialiased relative flex flex-col">
-      {/* Background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/images/hero-bg.png')" }}></div>
         <div className="absolute inset-0 bg-midnight-950/90"></div>
@@ -53,8 +56,7 @@ export default function AdminLogin() {
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="owner@taskit.co.ke"
-                className="w-full bg-midnight-900 border border-midnight-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-red-500 transition-colors placeholder:text-midnight-600"
+                className="w-full bg-midnight-900 border border-midnight-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-red-500 transition-colors"
               />
             </div>
             <div>
@@ -63,12 +65,11 @@ export default function AdminLogin() {
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-midnight-900 border border-midnight-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-red-500 transition-colors placeholder:text-midnight-600"
+                className="w-full bg-midnight-900 border border-midnight-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-red-500 transition-colors"
               />
             </div>
-            <button type="submit" className="w-full bg-red-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-red-500 transition-colors active:scale-[0.98]">
-              Secure Sign In
+            <button type="submit" disabled={loading} className="w-full bg-red-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-red-500 transition-colors active:scale-[0.98] disabled:opacity-50">
+              {loading ? 'Signing In...' : 'Secure Sign In'}
             </button>
           </form>
 

@@ -7,44 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==========================================
-// CORE USER & AUTH MODELS
-// ==========================================
+model User {
+  id             String    @id
+  email          String    @unique
+  password       String?
+  name           String?
+  phone          String?   @unique
+  role           String    @default("CUSTOMER")
+  emailVerified  DateTime?
+  image          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-model Profile {
-  id        String   @id // Matches Supabase Auth User ID exactly
-  phone     String   @unique
-  fullName  String?
-  role      String   @default("CUSTOMER") // CUSTOMER, RIDER, ADMIN
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  riderDetail   RiderDetail?
+  accounts       Account[]
+  sessions       Session[]
+  riderDetail    RiderDetail?
   customerOrders Order[]   @relation("CustomerOrders")
   riderOrders    Order[]   @relation("RiderOrders")
 
-  @@map("profiles")
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
 model RiderDetail {
-  id            String   @id // Same as Profile ID
+  id            String   @id 
   licenseNumber String   @unique
   plateNumber   String   @unique
-  kycStatus     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  kycStatus     String   @default("PENDING")
   rating        Float    @default(5.0)
   isOnline      Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
-  profile Profile @relation(fields: [id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
 
   @@map("rider_details")
 }
-
-// ==========================================
-// PLATFORM CONFIGURATION MODELS
-// ==========================================
 
 model Zone {
   id        String   @id @default(cuid())
@@ -53,8 +88,7 @@ model Zone {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  orders Order[]
+  orders    Order[]
 
   @@map("zones")
 }
@@ -70,27 +104,32 @@ model ErrandType {
   @@map("errand_types")
 }
 
-// ==========================================
-// TRANSACTION & OPERATIONS MODELS
-// ==========================================
-
 model Order {
-  id                String   @id @default(cuid())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  errandDescription String
-  status            String   @default("RECEIVED") // RECEIVED, PAID, RIDER_ASSIGNED, PICKED_UP, DELIVERED, CANCELLED
-  paymentStatus     String   @default("UNPAID") // UNPAID, PENDING, PAID, FAILED
-  mpesaReceipt      String?  @unique
-  checkoutRequestId String?  @unique
+  id                     String   @id @default(cuid())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  errandDescription      String
+  status                 String   @default("RECEIVED")
+  paymentStatus          String   @default("UNPAID") // UNPAID, PENDING_VERIFICATION, PAID, FAILED
+  mpesaTransactionCode   String?  @unique // The code the customer pastes
+  mpesaReceipt           String?  @unique // The code the admin confirms
   
   customerId String
   riderId    String?
   zoneId     String
 
-  customer Profile  @relation("CustomerOrders", fields: [customerId], references: [id])
-  rider    Profile? @relation("RiderOrders", fields: [riderId], references: [id])
-  zone     Zone     @relation(fields: [zoneId], references: [id])
+  customer User  @relation("CustomerOrders", fields: [customerId], references: [id])
+  rider    User? @relation("RiderOrders", fields: [riderId], references: [id])
+  zone     Zone  @relation(fields: [zoneId], references: [id])
 
   @@map("orders")
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
 }

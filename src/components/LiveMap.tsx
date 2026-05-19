@@ -24,14 +24,14 @@ const redIcon = new L.Icon({
 });
 
 const riders = [
-  { name: 'Kamau M.', plate: 'KBA 123J', status: 'Active', position: [-1.286389, 36.817223] }, // CBD
-  { name: 'Otieno D.', plate: 'KCD 456L', status: 'Active', position: [-1.263, 36.803] }, // Westlands
-  { name: 'Wanjiru A.', plate: 'KBJ 789P', status: 'Active', position: [-1.250, 36.830] }, // Near Ngara
+  { name: 'Kamau M.', plate: 'KBA 123J', status: 'Active', position: [-1.286389, 36.817223] as [number, number] }, // CBD
+  { name: 'Otieno D.', plate: 'KCD 456L', status: 'Active', position: [-1.263, 36.803] as [number, number] }, // Westlands
+  { name: 'Wanjiru A.', plate: 'KBJ 789P', status: 'Active', position: [-1.250, 36.830] as [number, number] }, // Near Ngara
 ];
 
 const pendingOrders = [
-  { id: 'TSK-905', zone: 'Eastleigh', position: [-1.278, 36.860] },
-  { id: 'TSK-906', zone: 'CBD', position: [-1.290, 36.820] },
+  { id: 'TSK-905', zone: 'Eastleigh', position: [-1.278, 36.860] as [number, number] },
+  { id: 'TSK-906', zone: 'CBD', position: [-1.290, 36.820] as [number, number] },
 ];
 
 export default function LiveMap() {

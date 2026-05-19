@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// CORE USER & AUTH MODELS
+// ==========================================
+
+model Profile {
+  id        String   @id // Matches Supabase Auth User ID exactly
+  phone     String   @unique
+  fullName  String?
+  role      String   @default("CUSTOMER") // CUSTOMER, RIDER, ADMIN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  riderDetail   RiderDetail?
+  customerOrders Order[]   @relation("CustomerOrders")
+  riderOrders    Order[]   @relation("RiderOrders")
+
+  @@map("profiles")
+}
+
+model RiderDetail {
+  id            String   @id // Same as Profile ID
+  licenseNumber String   @unique
+  plateNumber   String   @unique
+  kycStatus     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  rating        Float    @default(5.0)
+  isOnline      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  profile Profile @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("rider_details")
+}
+
+// ==========================================
+// PLATFORM CONFIGURATION MODELS
+// ==========================================
+
+model Zone {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  price     Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("zones")
+}
+
+model ErrandType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("errand_types")
+}
+
+// ==========================================
+// TRANSACTION & OPERATIONS MODELS
+// ==========================================
+
+model Order {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  errandDescription String
+  status            String   @default("RECEIVED") // RECEIVED, PAID, RIDER_ASSIGNED, PICKED_UP, DELIVERED, CANCELLED
+  paymentStatus     String   @default("UNPAID") // UNPAID, PENDING, PAID, FAILED
+  mpesaReceipt      String?  @unique
+  checkoutRequestId String?  @unique
+  
+  customerId String
+  riderId    String?
+  zoneId     String
+
+  customer Profile  @relation("CustomerOrders", fields: [customerId], references: [id])
+  rider    Profile? @relation("RiderOrders", fields: [riderId], references: [id])
+  zone     Zone     @relation(fields: [zoneId], references: [id])
+
+  @@map("orders")
+}

@@ -1,42 +1,32 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
-  const supabase = createAdminClient();
-  const body = await request.json();
-
   try {
-    const stkCallback = body.Body.stkCallback;
-    const checkoutRequestId = stkCallback.CheckoutRequestID;
+    const { mpesaTransactionCode, orderId, confirmed } = await request.json();
 
-    const { data: order } = await supabase
-      .from('orders')
-      .select('id')
-      .eq('checkout_request_id', checkoutRequestId)
-      .single();
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    if (stkCallback.ResultCode === 0) {
-      const mpesaReceipt = stkCallback.CallbackMetadata.Item.find(
-        (item: any) => item.Name === 'MpesaReceiptNumber'
-      )?.Value;
-
-      await supabase
-        .from('orders')
-        .update({
-          payment_status: 'PAID',
+    if (confirmed) {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          paymentStatus: 'PAID',
           status: 'RIDER_ASSIGNMENT',
-          mpesa_receipt: mpesaReceipt,
-        })
-        .eq('id', order.id);
+          mpesaReceipt: mpesaTransactionCode,
+        },
+      });
     } else {
-      await supabase
-        .from('orders')
-        .update({ payment_status: 'FAILED' })
-        .eq('id', order.id);
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { paymentStatus: 'FAILED' },
+      });
     }
 
     return NextResponse.json({ success: true });

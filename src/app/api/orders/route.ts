@@ -1,34 +1,28 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const { zone, errand_description, price, pickup_location } = await request.json();
+    const { zoneId, errandDescription } = await request.json();
 
-    const { data, error } = await supabase
-      .from('orders')
-      .insert({
-        customer_id: user.id,
-        zone,
-        errand_description,
-        price,
-        pickup_location,
+    const order = await prisma.order.create({
+      data: {
+        customerId: session.user.id,
+        zoneId,
+        errandDescription,
         status: 'RECEIVED',
-        payment_status: 'UNPAID',
-      })
-      .select()
-      .single();
+        paymentStatus: 'UNPAID',
+      },
+    });
 
-    if (error) throw error;
-
-    return NextResponse.json({ success: true, order: data });
+    return NextResponse.json({ success: true, order });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

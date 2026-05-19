@@ -1,30 +1,30 @@
 import { NextResponse } from 'next/server';
-import { initiateSTKPush } from '@/lib/mpesa';
-import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { phoneNumber, amount, orderId } = await request.json();
+    const { orderId, mpesaTransactionCode } = await request.json();
 
-    if (!phoneNumber || !amount || !orderId) {
+    if (!orderId || !mpesaTransactionCode) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const stkResponse = await initiateSTKPush(phoneNumber, amount, orderId);
+    const order = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        mpesaTransactionCode,
+        paymentStatus: 'PENDING_VERIFICATION',
+      },
+    });
 
-    await supabase
-      .from('orders')
-      .update({ payment_status: 'PENDING', checkout_request_id: stkResponse.CheckoutRequestID })
-      .eq('id', orderId);
-
-    return NextResponse.json({ success: true, message: 'STK Push initiated', data: stkResponse });
+    return NextResponse.json({ success: true, order });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

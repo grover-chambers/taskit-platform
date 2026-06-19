@@ -1,126 +1,142 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const ERRAND_TYPES = [
-  { name: 'Shopping', icon: '🛍️', href: '/book' },
-  { name: 'Bills', icon: '📄', href: '/book' },
-  { name: 'Documents', icon: '📁', href: '/book' },
-  { name: 'Groceries', icon: '🥑', href: '/book' },
-  { name: 'Pharmacy', icon: '💊', href: '/book' },
-  { name: 'Custom', icon: '✨', href: '/book' },
-];
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 export default function CustomerDashboard() {
+  const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [userName, setUserName] = useState("there");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/orders?role=customer')
+      .then(r => r.json())
+      .then(data => {
+        const active = data.orders?.filter(
+          (o: any) => !['DELIVERED', 'CANCELLED'].includes(o.status)
+        ) || [];
+        setActiveOrders(active);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+
+    fetch('/api/auth/session')
+      .then(r => r.json())
+      .then(s => {
+        if (s?.user?.name) setUserName(s.user.name.split(' ')[0]);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
-    <div className="px-6 pt-4">
-      {/* Referral & Search Card */}
-      <div className="mb-6">
-        <div className="bg-midnight-800 border border-midnight-700 p-6 rounded-2xl shadow-soft-dark relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gold-500/5 rounded-full -mr-10 -mt-10"></div>
-          <h3 className="text-gold-500 font-bold text-lg mb-2">Earn Ksh 100</h3>
-          <p className="text-gray-300 text-sm mb-4">Invite a friend to TaskIt and get Ksh 100 credit for your next errand.</p>
-          <div className="bg-midnight-900 border border-midnight-700 rounded-xl px-4 py-3 text-gray-500 text-sm flex items-center space-x-2 cursor-pointer hover:border-gold-500 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <span>Where is your errand?</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Options */}
-      <div className="mb-8">
-        <h2 className="text-white font-bold text-lg mb-4">Quick Options</h2>
-        <div className="grid grid-cols-3 gap-3">
-          <Link href="/book" className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex flex-col items-center justify-center hover:border-gold-500 transition-colors group">
-            <div className="w-10 h-10 bg-gold-500/20 text-gold-500 rounded-full flex items-center justify-center mb-2 group-hover:bg-gold-500 group-hover:text-midnight-950 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            </div>
-            <span className="text-white text-xs font-semibold">Create</span>
-          </Link>
-          <Link href="/dashboard/orders" className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex flex-col items-center justify-center hover:border-gold-500 transition-colors group">
-            <div className="w-10 h-10 bg-gold-500/20 text-gold-500 rounded-full flex items-center justify-center mb-2 group-hover:bg-gold-500 group-hover:text-midnight-950 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-            </div>
-            <span className="text-white text-xs font-semibold">Track</span>
-          </Link>
-          <Link href="/book" className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex flex-col items-center justify-center hover:border-gold-500 transition-colors group">
-            <div className="w-10 h-10 bg-gold-500/20 text-gold-500 rounded-full flex items-center justify-center mb-2 group-hover:bg-gold-500 group-hover:text-midnight-950 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            </div>
-            <span className="text-white text-xs font-semibold">Schedule</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Errand Types */}
-      <div className="mb-8">
-        <h2 className="text-white font-bold text-lg mb-4">Errand Types</h2>
-        <div className="grid grid-cols-3 gap-3">
-          {ERRAND_TYPES.map((type) => (
-            <Link href={type.href} key={type.name} className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex flex-col items-center justify-center hover:border-gold-500 transition-colors group">
-              <span className="text-2xl mb-2">{type.icon}</span>
-              <span className="text-white text-xs font-semibold">{type.name}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Delivery Zones - Stylized Map */}
+    <div className="px-6 pt-4 pb-24">
+      {/* Greeting */}
       <div className="mb-4">
-        <h2 className="text-white font-bold text-lg mb-4">Delivery Zones</h2>
-        <div className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl shadow-soft-dark relative overflow-hidden">
-          <div className="relative w-full h-64 mb-4">
-            <svg className="w-full h-full" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M50 150 Q150 50 200 150 T350 100" stroke="#262626" strokeWidth="8" strokeLinecap="round" />
-              <path d="M100 50 Q150 150 100 250" stroke="#262626" strokeWidth="8" strokeLinecap="round" />
-              <path d="M50 200 H350" stroke="#262626" strokeWidth="8" strokeLinecap="round" />
-              <path d="M300 50 V250" stroke="#262626" strokeWidth="8" strokeLinecap="round" />
-              <circle cx="120" cy="210" r="40" fill="rgba(255, 215, 0, 0.03)" stroke="#EAB308" strokeWidth="2" strokeDasharray="8 4" className="animate-pulse" />
-              <text x="120" y="215" textAnchor="middle" fill="#EAB308" fontSize="12" fontWeight="bold">Ngara</text>
-              <text x="120" y="230" textAnchor="middle" fill="#737373" fontSize="9">Ksh 300</text>
-              <circle cx="200" cy="150" r="35" fill="rgba(255, 215, 0, 0.05)" stroke="#FFD700" strokeWidth="3" className="animate-pulse" />
-              <text x="200" y="155" textAnchor="middle" fill="#FFD700" fontSize="14" fontWeight="bold">CBD</text>
-              <text x="200" y="172" textAnchor="middle" fill="#A3A3A3" fontSize="10">Ksh 150</text>
-              <circle cx="130" cy="90" r="45" fill="rgba(255, 215, 0, 0.03)" stroke="#EAB308" strokeWidth="2" strokeDasharray="8 4" className="animate-pulse" />
-              <text x="130" y="95" textAnchor="middle" fill="#EAB308" fontSize="12" fontWeight="bold">Westlands</text>
-              <text x="130" y="110" textAnchor="middle" fill="#737373" fontSize="9">Ksh 250</text>
-              <circle cx="300" cy="130" r="50" fill="rgba(255, 215, 0, 0.03)" stroke="#EAB308" strokeWidth="2" strokeDasharray="8 4" className="animate-pulse" />
-              <text x="300" y="135" textAnchor="middle" fill="#EAB308" fontSize="12" fontWeight="bold">Eastleigh</text>
-              <text x="300" y="150" textAnchor="middle" fill="#737373" fontSize="9">Ksh 300</text>
-              <path d="M200 130 L204 140 L200 138 L196 140 Z" fill="#FFD700" />
-            </svg>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Link href="/book" className="bg-midnight-900 border border-midnight-700 p-3 rounded-xl flex items-center justify-between hover:border-gold-500 transition-colors">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-gold-500 rounded-full"></div>
-                <span className="text-white text-sm font-semibold">CBD</span>
-              </div>
-              <span className="text-gold-500 text-xs font-bold">Ksh 150</span>
-            </Link>
-            <Link href="/book" className="bg-midnight-900 border border-midnight-700 p-3 rounded-xl flex items-center justify-between hover:border-gold-500 transition-colors">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-gold-600 rounded-full"></div>
-                <span className="text-white text-sm font-semibold">Westlands</span>
-              </div>
-              <span className="text-gold-500 text-xs font-bold">Ksh 250</span>
-            </Link>
-            <Link href="/book" className="bg-midnight-900 border border-midnight-700 p-3 rounded-xl flex items-center justify-between hover:border-gold-500 transition-colors">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-gold-600 rounded-full"></div>
-                <span className="text-white text-sm font-semibold">Eastleigh</span>
-              </div>
-              <span className="text-gold-500 text-xs font-bold">Ksh 300</span>
-            </Link>
-            <Link href="/book" className="bg-midnight-900 border border-midnight-700 p-3 rounded-xl flex items-center justify-between hover:border-gold-500 transition-colors">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-gold-600 rounded-full"></div>
-                <span className="text-white text-sm font-semibold">Ngara</span>
-              </div>
-              <span className="text-gold-500 text-xs font-bold">Ksh 300</span>
-            </Link>
-          </div>
+        <h2 className="font-bold text-lg text-white">{getGreeting()}, {userName} 👋</h2>
+        <p className="text-gray-400 text-sm mt-0.5">What do you need done today?</p>
+      </div>
+
+      {/* Search Bar */}
+      <div className="bg-midnight-800 border border-midnight-700 rounded-xl px-4 py-3 flex items-center gap-2 mb-5">
+        <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <span className="text-gray-500 text-sm">Search services, vendors, errands…</span>
+      </div>
+
+      {/* Quick Action Cards */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <Link href="/book" className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-gold-500/50 transition-all active:scale-[0.98] overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gold-500" />
+          <div className="text-2xl mb-2">🏃</div>
+          <div className="text-white text-sm font-bold mb-0.5">Run an Errand</div>
+          <div className="text-gray-400 text-xs">From KSh 150 flat rate</div>
+        </Link>
+        <Link href="/book" className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-orange-500/50 transition-all active:scale-[0.98] overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-orange-500" />
+          <div className="text-2xl mb-2">🛒</div>
+          <div className="text-white text-sm font-bold mb-0.5">Marketplace</div>
+          <div className="text-gray-400 text-xs">Order & get delivered</div>
+        </Link>
+        <Link href="/book" className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-blue-500/50 transition-all active:scale-[0.98] overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500" />
+          <div className="text-2xl mb-2">🔧</div>
+          <div className="text-white text-sm font-bold mb-0.5">Hire a Pro</div>
+          <div className="text-gray-400 text-xs">Plumber, cleaner, fundi</div>
+        </Link>
+        <div className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-purple-500/50 transition-all active:scale-[0.98] overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-purple-500" />
+          <div className="text-2xl mb-2">🚛</div>
+          <div className="text-white text-sm font-bold mb-0.5">Big Delivery</div>
+          <div className="text-gray-400 text-xs">Powered by KaniniOS</div>
         </div>
+      </div>
+
+      {/* Active Orders */}
+      <div className="mb-6">
+        <div className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-3">Active Orders</div>
+        {loading ? (
+          <div className="text-gray-500 text-sm py-4 text-center">Loading orders...</div>
+        ) : activeOrders.length === 0 ? (
+          <div className="bg-midnight-800/50 border border-dashed border-midnight-700 rounded-2xl p-6 text-center">
+            <p className="text-gray-500 text-sm">No active orders</p>
+            <Link href="/book" className="text-gold-500 text-sm font-semibold mt-1 inline-block hover:underline">Book your first errand</Link>
+          </div>
+        ) : (
+          activeOrders.map((order: any) => (
+            <Link
+              key={order.id}
+              href={`/dashboard/orders/${order.id}`}
+              className="bg-midnight-800 border border-midnight-700 rounded-2xl p-4 flex items-center gap-3 hover:border-gold-500/50 transition-all mb-2"
+            >
+              <div className="w-10 h-10 rounded-xl bg-gold-500/15 flex items-center justify-center text-lg flex-shrink-0">
+                {order.shop ? '🛒' : '🏃'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-white text-sm font-semibold truncate">{order.errandDescription}</div>
+                <div className="text-gray-400 text-xs mt-0.5">
+                  {order.rider ? `Rider: ${order.rider.name}` : order.zone?.name || ''}
+                  {order.totalAmount > 0 ? ` · KSh ${order.totalAmount}` : ''}
+                </div>
+              </div>
+              <span className="text-[10px] font-bold bg-gold-500/15 text-gold-500 px-2 py-1 rounded-md">
+                {order.status === 'IN_TRANSIT' ? 'Live ›' : order.status === 'ACCEPTED' ? 'Accepted' : order.status}
+              </span>
+            </Link>
+          ))
+        )}
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <Link href="/book" className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex items-center gap-3 hover:border-gold-500 transition-colors">
+          <div className="w-10 h-10 bg-gold-500/20 text-gold-500 rounded-xl flex items-center justify-center text-lg">📋</div>
+          <div>
+            <div className="text-white text-sm font-semibold">Book Errand</div>
+            <div className="text-gray-400 text-[10px]">Flat rate, instant dispatch</div>
+          </div>
+        </Link>
+        <Link href="/dashboard/orders" className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex items-center gap-3 hover:border-gold-500 transition-colors">
+          <div className="w-10 h-10 bg-gold-500/20 text-gold-500 rounded-xl flex items-center justify-center text-lg">📦</div>
+          <div>
+            <div className="text-white text-sm font-semibold">My Orders</div>
+            <div className="text-gray-400 text-[10px]">Track all your errands</div>
+          </div>
+        </Link>
+      </div>
+
+      {/* Referral Card */}
+      <div className="bg-midnight-800 border border-midnight-700 p-5 rounded-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gold-500/5 rounded-full -mr-10 -mt-10" />
+        <h3 className="text-gold-500 font-bold text-base mb-1">Earn KSh 100</h3>
+        <p className="text-gray-400 text-sm">Invite a friend and get KSh 100 credit for your next errand.</p>
       </div>
     </div>
   );

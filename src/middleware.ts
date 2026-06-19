@@ -5,6 +5,7 @@ export const config = {
     "/admin/((?!login).*)", 
     "/dashboard/:path*", 
     "/book/:path*",
-    "/rider/:path*"
+    "/rider/:path*",
+    "/vendor/:path*"
   ] 
 }

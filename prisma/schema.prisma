@@ -91,6 +91,7 @@ model RiderDetail {
   kycStatus     String   @default("PENDING")
   rating        Float    @default(5.0)
   isOnline      Boolean  @default(false)
+  currentOrderId String?
   totalTrips    Int      @default(0)
   todayEarnings Int      @default(0)
   createdAt     DateTime @default(now())
@@ -98,8 +99,26 @@ model RiderDetail {
 
   user     User           @relation(fields: [id], references: [id], onDelete: Cascade)
   earnings RiderEarning[]
+  location RiderLocation?
 
   @@map("rider_details")
+}
+
+model RiderLocation {
+  id         String   @id @default(cuid())
+  riderId    String   @unique
+  lat        Decimal  @db.Decimal(10, 7)
+  lng        Decimal  @db.Decimal(10, 7)
+  heading    Decimal? @db.Decimal(5, 2)
+  speedKmh   Decimal? @db.Decimal(5, 2)
+  accuracyM  Decimal? @db.Decimal(6, 2)
+  orderId    String?
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  rider RiderDetail @relation(fields: [riderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("rider_locations")
 }
 
 model RiderEarning {
@@ -222,13 +241,15 @@ model ErrandType {
 model Order {
   id                   String   @id @default(cuid())
   errandDescription    String
-  status               String   @default("RECEIVED") // RECEIVED, ACCEPTED, ASSIGNED, PICKED_UP, IN_TRANSIT, DELIVERED, CANCELLED
-  paymentStatus        String   @default("UNPAID") // UNPAID, PENDING_VERIFICATION, PAID, FAILED
+  status               String   @default("RECEIVED")
+  paymentStatus        String   @default("UNPAID")
   paymentMethod        String   @default("M-PESA")
   mpesaTransactionCode String?  @unique
   mpesaReceipt         String?  @unique
   totalAmount          Int      @default(0)
   isLaaS               Boolean  @default(false)
+  idempotencyKey       String?  @unique
+  assignedAt           DateTime?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

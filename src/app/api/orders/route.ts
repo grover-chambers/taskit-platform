@@ -10,7 +10,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { zoneId, errandDescription, totalAmount, shopId } = await request.json();
+    const { zoneId, errandDescription, totalAmount, shopId, idempotencyKey, paymentMethod } = await request.json();
+
+    if (idempotencyKey) {
+      const existing = await prisma.order.findUnique({
+        where: { idempotencyKey },
+      });
+      if (existing) {
+        return NextResponse.json({ success: true, order: existing }, { status: 200 });
+      }
+    }
 
     const order = await prisma.order.create({
       data: {
@@ -20,7 +29,9 @@ export async function POST(request: Request) {
         totalAmount: totalAmount || 0,
         status: 'RECEIVED',
         paymentStatus: 'UNPAID',
+        paymentMethod: paymentMethod || 'M-PESA',
         shopId: shopId || null,
+        idempotencyKey: idempotencyKey || null,
       },
     });
 
@@ -32,7 +43,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, order });
+    return NextResponse.json({ success: true, order }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -48,7 +59,6 @@ export async function GET(request: Request) {
   const role = searchParams.get('role') || 'customer';
 
   try {
-    let orders;
     const baseInclude = {
       zone: true,
       customer: { select: { id: true, name: true, phone: true } },
@@ -57,6 +67,7 @@ export async function GET(request: Request) {
       statusLogs: { orderBy: { createdAt: 'asc' as const } },
     };
 
+    let orders;
     if (role === 'customer') {
       orders = await prisma.order.findMany({
         where: { customerId: session.user.id },

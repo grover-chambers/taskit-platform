@@ -26,6 +26,10 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
             <Link href="/admin" className="flex items-center space-x-3 py-3 px-4 rounded-xl text-gray-300 hover:bg-midnight-800 hover:text-white transition-colors">
               <span className="font-semibold">Command Center</span>
             </Link>
+            <Link href="/admin/dispatch" className="flex items-center space-x-3 py-3 px-4 rounded-xl text-gold-500 hover:bg-midnight-800 hover:text-white transition-colors">
+              <span className="font-semibold">Dispatch Queue</span>
+              <span className="text-[9px] bg-gold-500 text-black px-1.5 py-0.5 rounded-full font-bold">LIVE</span>
+            </Link>
             <Link href="/admin/riders" className="flex items-center space-x-3 py-3 px-4 rounded-xl text-gray-300 hover:bg-midnight-800 hover:text-white transition-colors">
               <span className="font-semibold">Fleet & Riders</span>
             </Link>

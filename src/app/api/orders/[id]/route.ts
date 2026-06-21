@@ -3,6 +3,16 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  RECEIVED: ['ACCEPTED', 'CANCELLED'],
+  ACCEPTED: ['ASSIGNED', 'CANCELLED'],
+  ASSIGNED: ['PICKED_UP', 'CANCELLED'],
+  PICKED_UP: ['IN_TRANSIT', 'CANCELLED'],
+  IN_TRANSIT: ['DELIVERED', 'CANCELLED'],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
 export async function GET(
   _request: Request,
   { params }: { params: { id: string } }
@@ -20,9 +30,7 @@ export async function GET(
         customer: { select: { id: true, name: true, phone: true } },
         rider: {
           select: {
-            id: true,
-            name: true,
-            phone: true,
+            id: true, name: true, phone: true,
             riderDetail: { select: { plateNumber: true, rating: true } },
           },
         },
@@ -55,28 +63,67 @@ export async function PATCH(
     const body = await request.json();
     const { status, riderId, paymentStatus, mpesaTransactionCode } = body;
 
+    if (riderId) {
+      return NextResponse.json(
+        { error: 'Use POST /api/admin/dispatch/assign for rider assignment' },
+        { status: 400 }
+      );
+    }
+
+    const currentOrder = await prisma.order.findUnique({ where: { id: params.id } });
+    if (!currentOrder) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    if (status && !VALID_TRANSITIONS[currentOrder.status]?.includes(status)) {
+      return NextResponse.json(
+        { error: `Cannot transition from ${currentOrder.status} to ${status}` },
+        { status: 409 }
+      );
+    }
+
     const updateData: any = {};
     if (status) updateData.status = status;
-    if (riderId) updateData.riderId = riderId;
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
     if (mpesaTransactionCode) updateData.mpesaTransactionCode = mpesaTransactionCode;
 
-    const order = await prisma.order.update({
-      where: { id: params.id },
-      data: updateData,
+    const result = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.update({
+        where: { id: params.id },
+        data: updateData,
+      });
+
+      if (status) {
+        await tx.orderStatus.create({
+          data: {
+            orderId: order.id,
+            status,
+            note: body.note || `Status updated to ${status}`,
+          },
+        });
+      }
+
+      if (status === 'DELIVERED' && order.riderId) {
+        await tx.riderDetail.update({
+          where: { id: order.riderId },
+          data: {
+            currentOrderId: null,
+            totalTrips: { increment: 1 },
+          },
+        });
+      }
+
+      if (status === 'CANCELLED' && order.riderId) {
+        await tx.riderDetail.update({
+          where: { id: order.riderId },
+          data: { currentOrderId: null },
+        });
+      }
+
+      return order;
     });
 
-    if (status) {
-      await prisma.orderStatus.create({
-        data: {
-          orderId: order.id,
-          status,
-          note: `Status updated to ${status}`,
-        },
-      });
-    }
-
-    return NextResponse.json({ success: true, order });
+    return NextResponse.json({ success: true, order: result });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

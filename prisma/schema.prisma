@@ -240,7 +240,13 @@ model ErrandType {
 // ── ORDER ──
 model Order {
   id                   String   @id @default(cuid())
+  orderType            String   @default("ERRAND")
   errandDescription    String
+  pickupLocation       String?
+  dropoffLocation      String?
+  contactPhone         String?
+  specialInstructions  String?
+  urgency              String   @default("NORMAL")
   status               String   @default("RECEIVED")
   paymentStatus        String   @default("UNPAID")
   paymentMethod        String   @default("M-PESA")

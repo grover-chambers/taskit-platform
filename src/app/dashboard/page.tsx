@@ -3,17 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
 export default function CustomerDashboard() {
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
-  const [userName, setUserName] = useState("there");
   const [loading, setLoading] = useState(true);
+  const [comingSoon, setComingSoon] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/orders?role=customer')
@@ -26,57 +19,57 @@ export default function CustomerDashboard() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-
-    fetch('/api/auth/session')
-      .then(r => r.json())
-      .then(s => {
-        if (s?.user?.name) setUserName(s.user.name.split(' ')[0]);
-      })
-      .catch(() => {});
   }, []);
 
   return (
     <div className="px-6 pt-4 pb-24">
-      {/* Greeting */}
-      <div className="mb-4">
-        <h2 className="font-bold text-lg text-white">{getGreeting()}, {userName} 👋</h2>
-        <p className="text-gray-400 text-sm mt-0.5">What do you need done today?</p>
-      </div>
+      {comingSoon && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setComingSoon(null)}>
+          <div className="bg-midnight-800 border border-midnight-700 rounded-2xl p-8 text-center max-w-xs mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="text-5xl mb-4">🚧</div>
+            <h3 className="text-white font-bold text-lg mb-2">Coming Soon</h3>
+            <p className="text-gray-400 text-sm mb-4">{comingSoon} is under development. Stay tuned!</p>
+            <button onClick={() => setComingSoon(null)} className="bg-gold-500 text-midnight-950 px-6 py-2 rounded-xl font-bold text-sm hover:bg-gold-400 transition-colors">Got it</button>
+          </div>
+        </div>
+      )}
 
       {/* Search Bar */}
       <div className="bg-midnight-800 border border-midnight-700 rounded-xl px-4 py-3 flex items-center gap-2 mb-5">
         <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
-        <span className="text-gray-500 text-sm">Search services, vendors, errands…</span>
+        <span className="text-gray-500 text-sm">Search services, vendors, errands...</span>
       </div>
 
-      {/* Quick Action Cards */}
+      {/* Service Cards */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <Link href="/book" className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-gold-500/50 transition-all active:scale-[0.98] overflow-hidden">
+        <Link href="/book/errand" className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-gold-500/50 transition-all active:scale-[0.98] overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-gold-500" />
           <div className="text-2xl mb-2">🏃</div>
           <div className="text-white text-sm font-bold mb-0.5">Run an Errand</div>
           <div className="text-gray-400 text-xs">From KSh 150 flat rate</div>
         </Link>
-        <Link href="/book" className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-orange-500/50 transition-all active:scale-[0.98] overflow-hidden">
+        <Link href="/book/marketplace" className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-orange-500/50 transition-all active:scale-[0.98] overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-orange-500" />
           <div className="text-2xl mb-2">🛒</div>
           <div className="text-white text-sm font-bold mb-0.5">Marketplace</div>
           <div className="text-gray-400 text-xs">Order & get delivered</div>
         </Link>
-        <Link href="/book" className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-blue-500/50 transition-all active:scale-[0.98] overflow-hidden">
+        <button onClick={() => setComingSoon('Hire a Pro')} className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-blue-500/50 transition-all active:scale-[0.98] overflow-hidden text-left">
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500" />
           <div className="text-2xl mb-2">🔧</div>
           <div className="text-white text-sm font-bold mb-0.5">Hire a Pro</div>
           <div className="text-gray-400 text-xs">Plumber, cleaner, fundi</div>
-        </Link>
-        <div className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-purple-500/50 transition-all active:scale-[0.98] overflow-hidden">
+          <span className="absolute top-2 right-2 text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-bold">SOON</span>
+        </button>
+        <button onClick={() => setComingSoon('Big Delivery')} className="relative bg-midnight-800 border border-midnight-700 rounded-2xl p-4 hover:border-purple-500/50 transition-all active:scale-[0.98] overflow-hidden text-left">
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-purple-500" />
           <div className="text-2xl mb-2">🚛</div>
           <div className="text-white text-sm font-bold mb-0.5">Big Delivery</div>
           <div className="text-gray-400 text-xs">Powered by KaniniOS</div>
-        </div>
+          <span className="absolute top-2 right-2 text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded font-bold">SOON</span>
+        </button>
       </div>
 
       {/* Active Orders */}
@@ -87,7 +80,7 @@ export default function CustomerDashboard() {
         ) : activeOrders.length === 0 ? (
           <div className="bg-midnight-800/50 border border-dashed border-midnight-700 rounded-2xl p-6 text-center">
             <p className="text-gray-500 text-sm">No active orders</p>
-            <Link href="/book" className="text-gold-500 text-sm font-semibold mt-1 inline-block hover:underline">Book your first errand</Link>
+            <Link href="/book/errand" className="text-gold-500 text-sm font-semibold mt-1 inline-block hover:underline">Book your first errand</Link>
           </div>
         ) : (
           activeOrders.map((order: any) => (
@@ -116,7 +109,7 @@ export default function CustomerDashboard() {
 
       {/* Quick Links */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <Link href="/book" className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex items-center gap-3 hover:border-gold-500 transition-colors">
+        <Link href="/book/errand" className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex items-center gap-3 hover:border-gold-500 transition-colors">
           <div className="w-10 h-10 bg-gold-500/20 text-gold-500 rounded-xl flex items-center justify-center text-lg">📋</div>
           <div>
             <div className="text-white text-sm font-semibold">Book Errand</div>

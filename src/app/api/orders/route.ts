@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { zoneId, errandDescription, totalAmount, shopId, idempotencyKey, paymentMethod } = await request.json();
+    const { zoneId, errandDescription, totalAmount, shopId, idempotencyKey, paymentMethod, mpesaTransactionCode, orderType, pickupLocation, dropoffLocation, contactPhone, specialInstructions, urgency } = await request.json();
 
     if (idempotencyKey) {
       const existing = await prisma.order.findUnique({
@@ -28,10 +28,17 @@ export async function POST(request: Request) {
         errandDescription,
         totalAmount: totalAmount || 0,
         status: 'RECEIVED',
-        paymentStatus: 'UNPAID',
+        paymentStatus: mpesaTransactionCode ? 'PENDING_VERIFICATION' : 'UNPAID',
         paymentMethod: paymentMethod || 'M-PESA',
         shopId: shopId || null,
         idempotencyKey: idempotencyKey || null,
+        mpesaTransactionCode: mpesaTransactionCode || null,
+        orderType: orderType || 'ERRAND',
+        pickupLocation: pickupLocation || null,
+        dropoffLocation: dropoffLocation || null,
+        contactPhone: contactPhone || null,
+        specialInstructions: specialInstructions || null,
+        urgency: urgency || 'NORMAL',
       },
     });
 

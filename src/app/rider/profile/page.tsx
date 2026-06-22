@@ -10,31 +10,44 @@ export default function RiderProfile() {
   const [totalTrips, setTotalTrips] = useState(0);
   const [rating, setRating] = useState(5.0);
   const [riderId, setRiderId] = useState('');
+  const [plateNumber, setPlateNumber] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [vehicleType, setVehicleType] = useState('');
+  const [todayEarnings, setTodayEarnings] = useState(0);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
+  const [userCreatedAt, setUserCreatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [saving, setSaving] = useState(false);
+  const [totalEarnings, setTotalEarnings] = useState(0);
 
   useEffect(() => {
-    fetch('/api/rider/stats')
-      .then(r => r.json())
-      .then(data => {
-        const rd = data.riderDetail;
-        if (rd) {
-          setRiderName(rd.user?.name || '');
-          setPhone(rd.user?.phone || '');
-          setEmail(rd.user?.email || '');
-          setKycStatus(rd.kycStatus || 'PENDING');
-          setTotalTrips(rd.totalTrips || 0);
-          setRating(rd.rating || 5.0);
-          setRiderId(rd.id?.slice(-4).toUpperCase() || '0000');
-          setEditName(rd.user?.name || '');
-          setEditPhone(rd.user?.phone || '');
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/rider/stats').then(r => r.json()),
+      fetch('/api/rider/earnings').then(r => r.json()),
+    ]).then(([statsData, earningsData]) => {
+      const rd = statsData.riderDetail;
+      if (rd) {
+        setRiderName(rd.user?.name || '');
+        setPhone(rd.user?.phone || '');
+        setEmail(rd.user?.email || '');
+        setKycStatus(rd.kycStatus || 'PENDING');
+        setTotalTrips(rd.totalTrips || 0);
+        setRating(rd.rating || 5.0);
+        setRiderId(rd.id?.slice(-4).toUpperCase() || '0000');
+        setPlateNumber(rd.plateNumber || '');
+        setLicenseNumber(rd.licenseNumber || '');
+        setVehicleType(rd.vehicleType || '');
+        setTodayEarnings(rd.todayEarnings || 0);
+        setCreatedAt(rd.createdAt || null);
+        setUserCreatedAt(rd.user?.createdAt || null);
+        setEditName(rd.user?.name || '');
+        setEditPhone(rd.user?.phone || '');
+      }
+      setTotalEarnings(earningsData.totalEarnings || 0);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const handleSaveProfile = async () => {
@@ -54,6 +67,24 @@ export default function RiderProfile() {
     setSaving(false);
   };
 
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const getDaysOnPlatform = () => {
+    const dateStr = userCreatedAt || createdAt;
+    if (!dateStr) return 0;
+    const joined = new Date(dateStr);
+    const now = new Date();
+    return Math.floor((now.getTime() - joined.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const getVerifiedDate = () => {
+    if (kycStatus !== 'VERIFIED') return null;
+    return createdAt;
+  };
+
   const kycBadge = () => {
     if (kycStatus === 'VERIFIED') return <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-green-500/15 text-green-400">Verified</span>;
     if (kycStatus === 'REJECTED') return <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-500/15 text-red-400">Rejected</span>;
@@ -63,6 +94,9 @@ export default function RiderProfile() {
   if (loading) return <div className="p-6 pt-4"><p className="text-gray-500 text-sm">Loading...</p></div>;
 
   const initial = riderName ? riderName.charAt(0).toUpperCase() : '?';
+  const daysOnPlatform = getDaysOnPlatform();
+  const avgDailyEarnings = daysOnPlatform > 0 ? Math.round(totalEarnings / daysOnPlatform) : 0;
+  const completionRate = totalTrips > 0 ? Math.round((totalTrips / (totalTrips + 0)) * 100) : 0;
 
   return (
     <div className="p-6 pt-4">
@@ -75,14 +109,18 @@ export default function RiderProfile() {
           <p className="text-gray-400 text-sm">Rider #R-{riderId}</p>
           {kycBadge()}
         </div>
-        <div className="flex justify-center gap-8 mt-4">
+        <div className="grid grid-cols-3 gap-6 mt-4 w-full">
           <div className="text-center">
-            <p className="text-white font-bold text-xl">{totalTrips}</p>
+            <p className="text-white font-bold text-lg">{totalTrips}</p>
             <p className="text-gray-500 text-[10px]">Trips</p>
           </div>
           <div className="text-center">
-            <p className="text-yellow-500 font-bold text-xl">{rating.toFixed(1)}</p>
+            <p className="text-yellow-500 font-bold text-lg">{rating.toFixed(1)}</p>
             <p className="text-gray-500 text-[10px]">Rating</p>
+          </div>
+          <div className="text-center">
+            <p className="text-gold-500 font-bold text-lg">{daysOnPlatform}</p>
+            <p className="text-gray-500 text-[10px]">Days</p>
           </div>
         </div>
       </div>
@@ -138,7 +176,13 @@ export default function RiderProfile() {
         </div>
 
         <div className="bg-midnight-800 p-4 rounded-2xl border border-midnight-700 shadow-soft-dark">
-          <div className="space-y-2">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-midnight-700 rounded-xl flex items-center justify-center text-gold-500">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            </div>
+            <span className="text-white font-semibold">Personal Info</span>
+          </div>
+          <div className="space-y-2 ml-13">
             <div className="flex justify-between">
               <span className="text-gray-500 text-xs">Email</span>
               <span className="text-gray-400 text-sm">{email}</span>
@@ -146,6 +190,90 @@ export default function RiderProfile() {
             <div className="flex justify-between">
               <span className="text-gray-500 text-xs">Phone</span>
               <span className="text-white text-sm font-medium">{phone || '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">Joined</span>
+              <span className="text-white text-sm font-medium">{formatDate(userCreatedAt || createdAt)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">Days on Platform</span>
+              <span className="text-gold-500 text-sm font-bold">{daysOnPlatform}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-midnight-800 p-4 rounded-2xl border border-midnight-700 shadow-soft-dark">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-midnight-700 rounded-xl flex items-center justify-center text-gold-500">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+            </div>
+            <span className="text-white font-semibold">Verification</span>
+            {kycBadge()}
+          </div>
+          <div className="space-y-2 ml-13">
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">KYC Status</span>
+              <span className={`text-sm font-medium ${kycStatus === 'VERIFIED' ? 'text-green-400' : kycStatus === 'REJECTED' ? 'text-red-400' : 'text-yellow-400'}`}>
+                {kycStatus === 'VERIFIED' ? 'Approved' : kycStatus === 'REJECTED' ? 'Rejected' : 'Pending'}
+              </span>
+            </div>
+            {kycStatus === 'VERIFIED' && (
+              <div className="flex justify-between">
+                <span className="text-gray-500 text-xs">Verified Since</span>
+                <span className="text-white text-sm font-medium">{formatDate(getVerifiedDate())}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-midnight-800 p-4 rounded-2xl border border-midnight-700 shadow-soft-dark">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-midnight-700 rounded-xl flex items-center justify-center text-gold-500">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            </div>
+            <span className="text-white font-semibold">Vehicle</span>
+          </div>
+          <div className="space-y-2 ml-13">
+            {vehicleType && (
+              <div className="flex justify-between">
+                <span className="text-gray-500 text-xs">Type</span>
+                <span className="text-white text-sm font-medium">{vehicleType}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">Plate Number</span>
+              <span className="text-white text-sm font-medium">{plateNumber || '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">License Number</span>
+              <span className="text-white text-sm font-medium">{licenseNumber || '—'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-midnight-800 p-4 rounded-2xl border border-midnight-700 shadow-soft-dark">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-midnight-700 rounded-xl flex items-center justify-center text-gold-500">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <span className="text-white font-semibold">Performance</span>
+          </div>
+          <div className="space-y-2 ml-13">
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">Total Earnings</span>
+              <span className="text-gold-500 text-sm font-bold">KSh {totalEarnings.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">Today</span>
+              <span className="text-white text-sm font-medium">KSh {todayEarnings.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">Avg Daily Earnings</span>
+              <span className="text-white text-sm font-medium">KSh {avgDailyEarnings.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">Completion Rate</span>
+              <span className="text-green-400 text-sm font-bold">{completionRate}%</span>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import Link from 'next/link';
 
 const LOCATION_PING_INTERVAL = 8000;
 
@@ -23,8 +24,8 @@ export default function RiderDashboard() {
   const [riderDetail, setRiderDetail] = useState<any>(null);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [availableOrders, setAvailableOrders] = useState<any[]>([]);
-  const [completedOrders, setCompletedOrders] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -41,9 +42,9 @@ export default function RiderDashboard() {
       setRiderDetail(data.riderDetail);
       setActiveOrder(data.activeOrder);
       setAvailableOrders(data.availableOrders || []);
-      setCompletedOrders(data.orders || []);
       if (data.riderDetail) {
         setIsOnline(data.riderDetail.isOnline);
+        setLocationEnabled(data.riderDetail.locationEnabled ?? true);
       }
       if (data.riderDetail?.user?.name) {
         setRiderName(data.riderDetail.user.name);
@@ -100,6 +101,7 @@ export default function RiderDashboard() {
   }, [activeOrder, isOnline, startLocationPing]);
 
   const toggleOnline = async () => {
+    if (!isOnline && !locationEnabled) return;
     const newOnline = !isOnline;
     setIsOnline(newOnline);
     try {
@@ -173,6 +175,8 @@ export default function RiderDashboard() {
     );
   }
 
+  const kycStatus = riderDetail?.kycStatus || 'PENDING';
+  const isUnverified = kycStatus !== 'VERIFIED';
   const totalTrips = riderDetail?.totalTrips || 0;
   const todayEarnings = riderDetail?.todayEarnings || 0;
   const rating = riderDetail?.rating?.toFixed(1) || '5.0';
@@ -186,27 +190,27 @@ export default function RiderDashboard() {
             <h2 className="text-white font-bold text-lg">{riderName}</h2>
             <p className="text-gray-500 text-[9.5px]">Rider ID: #R-{riderDetail?.id?.slice(-4).toUpperCase() || '0000'}</p>
           </div>
-          {isOnline && (
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gold-500">
-              <span className="w-1.5 h-1.5 rounded-full bg-gold-500" style={{ animation: 'blink 1.4s ease-in-out infinite' }} />
-              Online
-            </div>
-          )}
+          <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isOnline ? 'text-gold-500' : 'text-gray-500'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-gold-500' : 'bg-gray-500'}`} />
+            {isOnline ? 'Online' : 'Offline'}
+          </div>
         </div>
       </div>
 
       <button
         onClick={toggleOnline}
+        disabled={!isOnline && !locationEnabled}
         className={`w-full p-5 rounded-2xl border-2 flex justify-between items-center transition-all mb-5 ${
+          !locationEnabled ? 'bg-midnight-800 border-red-900/50 opacity-60' :
           isOnline ? 'bg-gold-500/10 border-gold-500' : 'bg-midnight-800 border-midnight-700'
         }`}
       >
         <div>
-          <h3 className={`font-bold text-base ${isOnline ? 'text-gold-500' : 'text-white'}`}>
-            {isOnline ? 'You are Online' : 'You are Offline'}
+          <h3 className={`font-bold text-base ${!locationEnabled ? 'text-gray-500' : isOnline ? 'text-gold-500' : 'text-white'}`}>
+            {!locationEnabled ? 'Location Disabled' : isOnline ? 'You are Online' : 'You are Offline'}
           </h3>
           <p className="text-gray-400 text-xs mt-0.5">
-            {isOnline ? 'Waiting for nearby errands...' : 'Go online to receive tasks'}
+            {!locationEnabled ? 'Enable location in Settings first' : isOnline ? 'Waiting for nearby errands...' : 'Go online to receive tasks'}
           </p>
         </div>
         <div className={`w-12 h-7 rounded-full relative transition-colors flex-shrink-0 ${isOnline ? 'bg-gold-500' : 'bg-midnight-600'}`}>
@@ -214,7 +218,25 @@ export default function RiderDashboard() {
         </div>
       </button>
 
-      {isOnline && (
+      {isUnverified && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-5 mb-5 text-center">
+          <div className="text-3xl mb-2">🔒</div>
+          <h3 className="text-white font-bold text-base mb-1">Verification Required</h3>
+          <p className="text-gray-400 text-sm mb-4">
+            {kycStatus === 'REJECTED'
+              ? 'Some documents were rejected. Fix them to start receiving jobs.'
+              : 'Complete your document verification to start receiving delivery jobs.'}
+          </p>
+          <Link
+            href="/rider/verify"
+            className="inline-block bg-gold-500 text-midnight-950 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-gold-400 transition-colors"
+          >
+            Go to Verification
+          </Link>
+        </div>
+      )}
+
+      {isOnline && !isUnverified && (
         <div className="bg-gradient-to-r from-midnight-900/80 to-midnight-950/80 border border-midnight-700 rounded-2xl p-4 flex justify-around mb-5">
           <div className="text-center">
             <div className="font-bold text-lg text-gold-500">KSh {todayEarnings.toLocaleString()}</div>
@@ -290,7 +312,7 @@ export default function RiderDashboard() {
                           isCurrent ? 'bg-midnight-900 border-2 border-gold-500 text-gold-500' :
                           'bg-midnight-700 text-gray-500'
                         }`}>
-                          {isCompleted ? STEP_ICONS[step] : STEP_ICONS[step]}
+                          {STEP_ICONS[step]}
                         </div>
                         <span className={`text-[8px] mt-1 font-semibold ${isCurrent ? 'text-gold-500' : isCompleted ? 'text-white' : 'text-gray-500'}`}>
                           {STEP_LABELS[step]}
@@ -338,7 +360,7 @@ export default function RiderDashboard() {
         </div>
       )}
 
-      {isOnline && !activeOrder && availableOrders.length > 0 && (
+      {isOnline && !isUnverified && !activeOrder && availableOrders.length > 0 && (
         <div>
           <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider mb-3">
             Available Jobs ({availableOrders.length})
@@ -362,7 +384,7 @@ export default function RiderDashboard() {
         </div>
       )}
 
-      {isOnline && !activeOrder && availableOrders.length === 0 && (
+      {isOnline && !isUnverified && !activeOrder && availableOrders.length === 0 && (
         <div className="text-center py-12">
           <div className="text-4xl mb-3">🛵</div>
           <h3 className="text-white font-bold text-lg mb-1">Waiting for Jobs</h3>
@@ -370,7 +392,21 @@ export default function RiderDashboard() {
         </div>
       )}
 
-      {!isOnline && (
+      {!isOnline && !locationEnabled && (
+        <div className="text-center py-8">
+          <div className="text-4xl mb-3">📍</div>
+          <h3 className="text-white font-bold text-lg mb-1">Location is Disabled</h3>
+          <p className="text-gray-400 text-sm mb-4">Enable location in Settings to go online and receive jobs</p>
+          <Link
+            href="/rider/settings"
+            className="inline-block bg-gold-500/10 border border-gold-500/30 text-gold-500 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-gold-500/20 transition-colors"
+          >
+            Go to Settings
+          </Link>
+        </div>
+      )}
+
+      {!isOnline && locationEnabled && (
         <div className="text-center py-8">
           <div className="text-4xl mb-3">💤</div>
           <h3 className="text-white font-bold text-lg mb-1">You're Offline</h3>
@@ -422,10 +458,6 @@ export default function RiderDashboard() {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-      `}</style>
     </div>
   );
 }

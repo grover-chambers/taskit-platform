@@ -19,7 +19,7 @@ export async function GET() {
     const riderDetail = await prisma.riderDetail.findUnique({
       where: { id: session.user.id },
       include: {
-        user: { select: { name: true, phone: true, email: true } },
+        user: { select: { name: true, phone: true, email: true, createdAt: true } },
         documents: { orderBy: { createdAt: 'desc' } },
       },
     });
@@ -82,12 +82,28 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const { orderId, status, isOnline } = await request.json();
+    const { orderId, status, isOnline, locationEnabled, notificationsEnabled } = await request.json();
 
     if (isOnline !== undefined) {
       await prisma.riderDetail.update({
         where: { id: session.user.id },
-        data: { isOnline },
+        data: { isOnline, ...(locationEnabled !== undefined ? { locationEnabled } : {}), ...(notificationsEnabled !== undefined ? { notificationsEnabled } : {}) },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (locationEnabled !== undefined) {
+      await prisma.riderDetail.update({
+        where: { id: session.user.id },
+        data: { locationEnabled },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (notificationsEnabled !== undefined) {
+      await prisma.riderDetail.update({
+        where: { id: session.user.id },
+        data: { notificationsEnabled },
       });
       return NextResponse.json({ success: true });
     }

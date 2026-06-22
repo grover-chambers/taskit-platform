@@ -232,6 +232,17 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         </div>
       )}
 
+      {/* Delivery OTP */}
+      {order.status === 'IN_TRANSIT' && order.deliveryOtp && (
+        <div className="px-6 mb-4">
+          <div className="bg-gold-500/10 border border-gold-500/30 rounded-xl p-4 text-center">
+            <p className="text-gold-500 text-[10px] font-bold uppercase tracking-wider mb-1">Delivery OTP</p>
+            <p className="text-gold-500 text-3xl font-bold font-mono tracking-[0.5em]">{order.deliveryOtp}</p>
+            <p className="text-gray-400 text-[9px] mt-1">Share this code with your rider to confirm delivery</p>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       {isActive && (
         <div className="px-6 mb-4 flex gap-3">

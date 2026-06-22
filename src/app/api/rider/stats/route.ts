@@ -18,7 +18,10 @@ export async function GET() {
   try {
     const riderDetail = await prisma.riderDetail.findUnique({
       where: { id: session.user.id },
-      include: { user: { select: { name: true } } },
+      include: {
+        user: { select: { name: true, phone: true, email: true } },
+        documents: { orderBy: { createdAt: 'desc' } },
+      },
     });
 
     let orders: any[] = [];
@@ -105,7 +108,36 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (status === 'DELIVERED') {
+      const { deliveryOtp } = await request.json();
+      if (!deliveryOtp) {
+        return NextResponse.json({ error: 'Delivery OTP required' }, { status: 400 });
+      }
+      if (deliveryOtp !== order.deliveryOtp) {
+        return NextResponse.json({ error: 'Invalid OTP' }, { status: 403 });
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
+      if (status === 'IN_TRANSIT') {
+        const otp = String(Math.floor(1000 + Math.random() * 9000));
+        await tx.order.update({
+          where: { id: orderId },
+          data: { deliveryOtp: otp },
+        });
+        const customer = await tx.user.findUnique({ where: { id: order.customerId } });
+        if (customer) {
+          await tx.notification.create({
+            data: {
+              userId: customer.id,
+              title: 'Delivery OTP',
+              body: `Your delivery OTP is ${otp}. Share this with your rider to confirm delivery.`,
+              type: 'ORDER',
+            },
+          });
+        }
+      }
+
       const updated = await tx.order.update({
         where: { id: orderId },
         data: { status },
@@ -115,7 +147,9 @@ export async function PATCH(request: Request) {
         data: {
           orderId,
           status,
-          note: `Rider updated status to ${status}`,
+          note: status === 'IN_TRANSIT'
+            ? `Rider is on the way. Delivery OTP sent to customer.`
+            : `Rider updated status to ${status}`,
         },
       });
 

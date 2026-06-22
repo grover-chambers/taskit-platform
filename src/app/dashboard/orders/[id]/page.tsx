@@ -12,6 +12,10 @@ const STEP_ICONS: Record<string, string> = {
   RECEIVED: "📱", ACCEPTED: "✓", ASSIGNED: "🛵",
   PICKED_UP: "✓", IN_TRANSIT: "🛵", DELIVERED: "📦",
 };
+const TYPE_ICONS: Record<string, string> = {
+  ERRAND: '🏃',
+  MARKETPLACE: '🛒',
+};
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const [order, setOrder] = useState<any>(null);
@@ -57,8 +61,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-midnight-950">
-        <p className="text-gray-500">Loading...</p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-8 h-8 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -67,7 +71,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     return (
       <div className="p-6">
         <Link href="/dashboard/orders" className="text-gray-400 text-sm hover:text-gold-500">← Back to orders</Link>
-        <p className="text-gray-500 mt-4">Order not found</p>
+        <p className="text-gray-500 mt-4 text-center">Order not found</p>
       </div>
     );
   }
@@ -75,22 +79,27 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const currentStepIdx = STEPS.indexOf(order.status);
   const rider = order.rider;
   const isActive = ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'].includes(order.status);
+  const isDone = ['DELIVERED', 'CANCELLED'].includes(order.status);
   const locationAge = riderLocation?.updatedAt
     ? Math.round((Date.now() - new Date(riderLocation.updatedAt).getTime()) / 1000)
     : null;
 
   return (
-    <div className="pb-24">
-      <div className="bg-gradient-to-b from-midnight-900 to-midnight-950 px-6 pt-8 pb-0">
-        <Link href="/dashboard/orders" className="text-gray-400 text-sm hover:text-gold-500 transition-colors inline-flex items-center gap-1 mb-3">
-          ← Back to orders
+    <div className="pb-28">
+      <div className="px-6 pt-4">
+        <Link href="/dashboard/orders" className="text-gray-400 text-sm hover:text-gold-500 transition-colors inline-flex items-center gap-1 mb-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back to orders
         </Link>
-        <h1 className="text-white font-bold text-lg truncate">{order.errandDescription}</h1>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xl">{TYPE_ICONS[order.orderType] || '📋'}</span>
+          <h1 className="text-white font-bold text-lg truncate flex-1">{order.errandDescription}</h1>
+        </div>
         <p className="font-mono text-xs text-gold-500 mt-0.5">#{order.id.slice(-7).toUpperCase()}</p>
       </div>
 
-      {/* Map Section */}
-      <div className="relative h-48 bg-midnight-900 overflow-hidden border-y border-midnight-800">
+      {/* Map / Tracking Visual */}
+      <div className="relative h-44 bg-midnight-900 overflow-hidden border-y border-midnight-800 mt-3">
         <div className="absolute inset-0" style={{
           backgroundImage: `
             linear-gradient(rgba(30,50,80,0.4) 1px, transparent 1px),
@@ -119,19 +128,23 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         {isActive && !riderLocation && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-5 h-5 bg-gold-500 rounded-full border-[3px] border-midnight-950 mx-auto mb-2" style={{
-                animation: 'pulse-rider 2s ease-in-out infinite'
-              }} />
+              <div className="w-5 h-5 bg-gold-500 rounded-full border-[3px] border-midnight-950 mx-auto mb-2 animate-pulse" />
               <p className="text-gray-400 text-[10px]">Locating rider...</p>
             </div>
           </div>
         )}
 
-        {!isActive && (
+        {isDone && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-gray-500 text-sm">
-              {order.status === 'DELIVERED' ? '✓ Delivered' : order.status === 'CANCELLED' ? '✕ Cancelled' : 'Awaiting rider'}
+              {order.status === 'DELIVERED' ? '✓ Delivered' : '✕ Cancelled'}
             </div>
+          </div>
+        )}
+
+        {!isActive && !isDone && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-gray-500 text-sm">Awaiting rider</div>
           </div>
         )}
 
@@ -145,53 +158,56 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         `}</style>
       </div>
 
-      {/* Status / ETA */}
+      {/* Status Bar */}
       <div className="px-6 py-4">
         <div className={`rounded-xl px-4 py-3 flex items-center justify-between ${
           order.status === 'DELIVERED' ? 'bg-green-500/10 border border-green-500/25' :
           isActive ? 'bg-gold-500/10 border border-gold-500/25' :
+          order.status === 'CANCELLED' ? 'bg-red-500/10 border border-red-500/25' :
           'bg-midnight-800 border border-midnight-700'
         }`}>
           <div>
-            <div className="text-[10px] font-semibold" style={{ color: order.status === 'DELIVERED' ? '#22c55e' : isActive ? '#D4AF37' : '#6b7280' }}>
-              {order.status === 'DELIVERED' ? 'Delivered' : isActive ? 'Live Tracking' : order.status}
+            <div className="text-[10px] font-semibold" style={{ color: order.status === 'DELIVERED' ? '#22c55e' : order.status === 'CANCELLED' ? '#ef4444' : isActive ? '#D4AF37' : '#6b7280' }}>
+              {order.status === 'DELIVERED' ? 'Delivered' : order.status === 'CANCELLED' ? 'Cancelled' : isActive ? 'Live Tracking' : order.status.replace('_', ' ')}
             </div>
             <div className="text-[9px] text-gray-400">
-              {order.status === 'DELIVERED' ? 'Completed successfully' :
+              {isDone ? (order.status === 'DELIVERED' ? 'Completed successfully' : 'Order was cancelled') :
                isActive && locationAge !== null ? `Last ping ${locationAge}s ago` :
                'Waiting for update'}
             </div>
           </div>
           <div className="font-bold text-xl" style={{ color: order.status === 'DELIVERED' ? '#22c55e' : '#D4AF37' }}>
-            {order.totalAmount > 0 ? `KSh ${order.totalAmount}` : order.zone?.price ? `KSh ${order.zone.price}` : '—'}
+            {order.totalAmount > 0 ? `KSh ${order.totalAmount}` : '—'}
           </div>
         </div>
       </div>
 
       {/* Progress Steps */}
-      <div className="px-6 mb-5">
-        <div className="flex items-center">
-          {STEPS.map((step, i) => (
-            <div key={step} className="flex-1 flex flex-col items-center relative">
-              {i < STEPS.length - 1 && (
-                <div className={`absolute top-2.5 left-[50%] w-full h-0.5 ${i < currentStepIdx ? 'bg-gold-500' : 'bg-midnight-700'}`} />
-              )}
-              <div className={`
-                w-5 h-5 rounded-full flex items-center justify-center text-[9px] z-10 mb-1
-                ${i < currentStepIdx ? 'bg-gold-500 text-midnight-950 font-bold' :
-                  i === currentStepIdx ? 'bg-midnight-800 border-2 border-gold-500 text-gold-500' :
-                  'bg-midnight-700 text-gray-500'}
-                ${i === currentStepIdx && order.status !== 'DELIVERED' ? 'animate-pulse' : ''}
-              `}>
-                {STEP_ICONS[step] || '○'}
+      {!order.status.includes('CANCELLED') && (
+        <div className="px-6 mb-5">
+          <div className="flex items-center">
+            {STEPS.map((step, i) => (
+              <div key={step} className="flex-1 flex flex-col items-center relative">
+                {i < STEPS.length - 1 && (
+                  <div className={`absolute top-2.5 left-[50%] w-full h-0.5 ${i < currentStepIdx ? 'bg-gold-500' : 'bg-midnight-700'}`} />
+                )}
+                <div className={`
+                  w-5 h-5 rounded-full flex items-center justify-center text-[9px] z-10 mb-1
+                  ${i < currentStepIdx ? 'bg-gold-500 text-midnight-950 font-bold' :
+                    i === currentStepIdx ? 'bg-midnight-800 border-2 border-gold-500 text-gold-500' :
+                    'bg-midnight-700 text-gray-500'}
+                  ${i === currentStepIdx && order.status !== 'DELIVERED' ? 'animate-pulse' : ''}
+                `}>
+                  {STEP_ICONS[step] || '○'}
+                </div>
+                <span className={`text-[8px] text-center ${i <= currentStepIdx ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {STEP_LABELS[step] || step}
+                </span>
               </div>
-              <span className={`text-[8px] text-center ${i <= currentStepIdx ? 'text-gray-400' : 'text-gray-600'}`}>
-                {STEP_LABELS[step] || step}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Rider Info */}
       {rider && (
@@ -208,8 +224,24 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
               </div>
             </div>
             {rider.phone && (
-              <a href={`tel:${rider.phone}`} className="text-gold-500 text-sm font-bold hover:underline">Call</a>
+              <a href={`tel:${rider.phone}`} className="bg-gold-500/15 border border-gold-500/30 px-3 py-1.5 rounded-lg text-gold-500 text-xs font-bold hover:bg-gold-500/25 transition-colors">
+                Call
+              </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      {isActive && (
+        <div className="px-6 mb-4 flex gap-3">
+          {rider?.phone && (
+            <a href={`tel:${rider.phone}`} className="flex-1 bg-midnight-800 border border-midnight-700 rounded-xl py-3 flex items-center justify-center gap-2 text-white text-sm font-semibold hover:border-gold-500 transition-colors">
+              📞 Call Rider
+            </a>
+          )}
+          <div className="flex-1 bg-midnight-800 border border-midnight-700 rounded-xl py-3 flex items-center justify-center gap-2 text-gray-400 text-sm font-semibold">
+            💬 Chat (soon)
           </div>
         </div>
       )}
@@ -218,12 +250,30 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       <div className="px-6">
         <div className="bg-midnight-800/50 border border-midnight-700 rounded-xl p-4 space-y-2">
           <div className="flex justify-between">
+            <span className="text-gray-500 text-xs">Type</span>
+            <span className="text-white text-xs font-semibold">{order.orderType || 'ERRAND'}</span>
+          </div>
+          {order.pickupLocation && (
+            <div className="flex justify-between border-t border-midnight-700 pt-2">
+              <span className="text-gray-500 text-xs">Pickup</span>
+              <span className="text-white text-xs font-semibold text-right max-w-[65%]">{order.pickupLocation}</span>
+            </div>
+          )}
+          {order.dropoffLocation && (
+            <div className="flex justify-between border-t border-midnight-700 pt-2">
+              <span className="text-gray-500 text-xs">Drop-off</span>
+              <span className="text-white text-xs font-semibold text-right max-w-[65%]">{order.dropoffLocation}</span>
+            </div>
+          )}
+          <div className="flex justify-between border-t border-midnight-700 pt-2">
             <span className="text-gray-500 text-xs">Zone</span>
             <span className="text-white text-xs font-semibold">{order.zone?.name || '—'}</span>
           </div>
           <div className="flex justify-between border-t border-midnight-700 pt-2">
             <span className="text-gray-500 text-xs">Payment</span>
-            <span className="text-white text-xs font-semibold">{order.paymentStatus === 'PAID' ? 'M-Pesa Paid ✓' : order.paymentStatus}</span>
+            <span className="text-white text-xs font-semibold">
+              {order.paymentStatus === 'PAID' ? 'M-Pesa ✓' : order.paymentStatus === 'PENDING_VERIFICATION' ? 'Verifying...' : order.paymentStatus}
+            </span>
           </div>
           {order.totalAmount > 0 && (
             <div className="flex justify-between border-t border-midnight-700 pt-2">
@@ -231,12 +281,17 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
               <span className="text-gold-500 text-xs font-bold">KSh {order.totalAmount}</span>
             </div>
           )}
-          {order.shop && (
-            <div className="flex justify-between border-t border-midnight-700 pt-2">
-              <span className="text-gray-500 text-xs">Vendor</span>
-              <span className="text-white text-xs font-semibold">{order.shop.name}</span>
+          {order.specialInstructions && (
+            <div className="border-t border-midnight-700 pt-2">
+              <span className="text-gray-500 text-xs block mb-1">Instructions</span>
+              <p className="text-gray-300 text-xs">{order.specialInstructions}</p>
             </div>
           )}
+          <div className="flex justify-between border-t border-midnight-700 pt-2">
+            <span className="text-gray-500 text-xs">Placed</span>
+            <span className="text-white text-xs font-semibold">{new Date(order.createdAt).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+
           {order.statusLogs?.length > 0 && (
             <div className="border-t border-midnight-700 pt-3 mt-2">
               <p className="text-gray-500 text-[9px] uppercase tracking-wider font-bold mb-2">Timeline</p>
@@ -244,35 +299,11 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 {order.statusLogs.map((log: any, i: number) => (
                   <div key={i} className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${i === order.statusLogs.length - 1 ? 'bg-gold-500' : 'bg-midnight-600'}`} />
-                    <span className="text-gray-400 text-[10px] flex-1">{log.status}{log.note ? ` — ${log.note}` : ''}</span>
+                    <span className="text-gray-400 text-[10px] flex-1">{log.status.replace('_', ' ')}{log.note ? ` — ${log.note}` : ''}</span>
                     <span className="text-gray-600 text-[9px]">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom action bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-midnight-900/95 backdrop-blur-md border-t border-midnight-800 z-50 px-4 py-3">
-        <div className="max-w-lg mx-auto flex justify-around">
-          <a href={rider?.phone ? `tel:${rider.phone}` : '#'} className="flex flex-col items-center gap-0.5 text-gray-500 hover:text-gold-500 transition-colors">
-            <span className="text-lg">📞</span>
-            <span className="text-[9px] font-semibold">Call rider</span>
-          </a>
-          <div className="flex flex-col items-center gap-0.5 text-gold-500">
-            <span className="text-lg">🗺️</span>
-            <span className="text-[9px] font-semibold">Tracking</span>
-          </div>
-          <div className="flex flex-col items-center gap-0.5 text-gray-500 hover:text-gray-400 transition-colors">
-            <span className="text-lg">💬</span>
-            <span className="text-[9px] font-semibold">Chat</span>
-          </div>
-          {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
-            <div className="flex flex-col items-center gap-0.5 text-gray-500 hover:text-red-400 transition-colors">
-              <span className="text-lg">❌</span>
-              <span className="text-[9px] font-semibold">Cancel</span>
             </div>
           )}
         </div>

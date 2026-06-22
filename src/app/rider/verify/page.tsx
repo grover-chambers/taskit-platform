@@ -17,11 +17,14 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }>
   REJECTED: { bg: 'bg-red-500/15', text: 'text-red-400', label: 'Rejected' },
 };
 
-export default function RiderDocuments() {
+export default function RiderVerify() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
   const [kycStatus, setKycStatus] = useState('PENDING');
+  const [plateNumber, setPlateNumber] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [vehicleType, setVehicleType] = useState('');
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
@@ -31,16 +34,14 @@ export default function RiderDocuments() {
     ]).then(([docsData, statsData]) => {
       setDocuments(docsData.documents || []);
       setKycStatus(statsData.riderDetail?.kycStatus || 'PENDING');
+      setPlateNumber(statsData.riderDetail?.plateNumber || '');
+      setLicenseNumber(statsData.riderDetail?.licenseNumber || '');
+      setVehicleType(statsData.riderDetail?.vehicleType || '');
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const getDocStatus = (docType: string) => {
-    return documents.find(d => d.docType === docType)?.status || null;
-  };
-
-  const getDocUrl = (docType: string) => {
-    return documents.find(d => d.docType === docType)?.url || null;
-  };
+  const getDocStatus = (docType: string) => documents.find(d => d.docType === docType)?.status || null;
+  const getDocUrl = (docType: string) => documents.find(d => d.docType === docType)?.url || null;
 
   const handleUpload = async (docType: string, file: File) => {
     setUploading(docType);
@@ -53,10 +54,7 @@ export default function RiderDocuments() {
       });
       if (res.ok) {
         const data = await res.json();
-        setDocuments(prev => {
-          const filtered = prev.filter(d => d.docType !== docType);
-          return [...filtered, data.document];
-        });
+        setDocuments(prev => [...prev.filter(d => d.docType !== docType), data.document]);
         const refreshed = await fetch('/api/rider/stats').then(r => r.json());
         setKycStatus(refreshed.riderDetail?.kycStatus || 'PENDING');
       }
@@ -106,16 +104,41 @@ export default function RiderDocuments() {
     );
   };
 
-  if (loading) {
-    return <div className="p-6 pt-4"><p className="text-gray-500 text-sm">Loading...</p></div>;
-  }
+  if (loading) return <div className="p-6 pt-4"><p className="text-gray-500 text-sm">Loading...</p></div>;
 
   return (
     <div className="p-6 pt-4">
-      <h1 className="text-2xl font-serif font-bold text-white mb-2">Documents</h1>
-      <p className="text-gray-500 text-sm mb-5">Upload verification documents to get approved</p>
+      <h1 className="text-2xl font-serif font-bold text-white mb-2">Verification</h1>
+      <p className="text-gray-500 text-sm mb-5">Documents & vehicle info</p>
 
       {kycBanner()}
+
+      <div className="bg-midnight-800 border border-midnight-700 rounded-2xl p-4 mb-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-midnight-700 rounded-xl flex items-center justify-center text-gold-500">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          </div>
+          <span className="text-white font-semibold">Vehicle Details</span>
+        </div>
+        <div className="space-y-2 ml-13">
+          <div className="flex justify-between">
+            <span className="text-gray-500 text-xs">Plate Number</span>
+            <span className="text-white text-sm font-medium">{plateNumber || '—'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500 text-xs">License Number</span>
+            <span className="text-white text-sm font-medium">{licenseNumber || '—'}</span>
+          </div>
+          {vehicleType && (
+            <div className="flex justify-between">
+              <span className="text-gray-500 text-xs">Vehicle Type</span>
+              <span className="text-white text-sm font-medium">{vehicleType}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Documents</p>
 
       <div className="space-y-3">
         {DOC_TYPES.map(dt => {
@@ -140,11 +163,9 @@ export default function RiderDocuments() {
                     )}
                   </div>
                   <p className="text-gray-500 text-xs mb-2">{dt.desc}</p>
-
                   {docUrl && status === 'REJECTED' && (
                     <p className="text-red-400 text-[10px] mb-2">Previous upload was rejected. Please re-upload a clearer image.</p>
                   )}
-
                   {docUrl && status === 'APPROVED' && (
                     <a href={docUrl} target="_blank" rel="noopener noreferrer" className="text-gold-500 text-[10px] hover:underline">View uploaded document</a>
                   )}

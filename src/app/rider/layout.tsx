@@ -51,12 +51,12 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
             </div>
           )}
           {kycStatus !== 'VERIFIED' && pendingDocCount > 0 && (
-            <Link href="/rider/documents" className="relative">
+            <Link href="/rider/verify" className="relative">
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full text-[7px] text-white flex items-center justify-center font-bold">{pendingDocCount}</span>
             </Link>
           )}
-          <Link href="/rider/account" className="w-8 h-8 bg-midnight-800 border border-midnight-700 rounded-full flex items-center justify-center">
+          <Link href="/rider/profile" className="w-8 h-8 bg-midnight-800 border border-midnight-700 rounded-full flex items-center justify-center">
             <span className="text-gold-500 font-bold text-xs">{riderName.charAt(0).toUpperCase()}</span>
           </Link>
         </div>

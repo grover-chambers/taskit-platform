@@ -32,6 +32,10 @@ model User {
   enterpriseClients    EnterpriseClient[]
   bookings             Booking[]            @relation("BookingCustomer")
   enterpriseDeliveries EnterpriseDelivery[] @relation("EnterpriseRider")
+  supportTickets       SupportTicket[]      @relation("TicketCustomer")
+  riderTickets         SupportTicket[]
+  assignedTickets      SupportTicket[]      @relation("TicketAssignee")
+  supportMessages      SupportMessage[]     @relation("MessageSender")
 
   @@map("users")
 }
@@ -295,6 +299,7 @@ model Order {
   reviews            Review[]
   riderEarning       RiderEarning?
   enterpriseDelivery EnterpriseDelivery?
+  supportTickets     SupportTicket[]
 
   @@map("orders")
 }
@@ -410,4 +415,44 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+// ── SUPPORT ──
+model SupportTicket {
+  id          String   @id @default(cuid())
+  subject     String?
+  status      String   @default("OPEN")
+  priority    String   @default("NORMAL")
+  category    String   @default("GENERAL")
+  orderId     String?
+  customerId  String?
+  riderId     String?
+  assigneeId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order       Order?          @relation(fields: [orderId], references: [id])
+  customer    User?           @relation("TicketCustomer", fields: [customerId], references: [id])
+  rider       User?           @relation(fields: [riderId], references: [id])
+  assignee    User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  messages    SupportMessage[]
+
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id          String   @id @default(cuid())
+  ticketId    String
+  senderId    String?
+  direction   String   @default("OUTBOUND")
+  body        String
+  mediaUrl    String?
+  channel     String   @default("WHATSAPP")
+  whatsappId  String?
+  createdAt   DateTime @default(now())
+
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender      User?         @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@map("support_messages")
 }

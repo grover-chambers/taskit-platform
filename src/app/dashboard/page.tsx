@@ -147,6 +147,23 @@ export default function CustomerDashboard() {
         </Link>
       </div>
 
+      {/* WhatsApp Support */}
+      <a
+        href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '254797100144'}?text=${encodeURIComponent('Hi TaskIt Support, I need help')}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block bg-[#25D366]/10 border border-[#25D366]/30 p-4 rounded-2xl mb-4 hover:bg-[#25D366]/15 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#25D366]/20 text-[#25D366] rounded-xl flex items-center justify-center text-lg">💬</div>
+          <div className="flex-1">
+            <div className="text-[#25D366] text-sm font-semibold">Chat with Support</div>
+            <div className="text-gray-400 text-[10px]">WhatsApp us anytime — we reply fast</div>
+          </div>
+          <svg className="w-5 h-5 text-[#25D366]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+        </div>
+      </a>
+
       {/* Referral Card */}
       <div className="bg-midnight-800 border border-midnight-700 p-5 rounded-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gold-500/5 rounded-full -mr-10 -mt-10" />

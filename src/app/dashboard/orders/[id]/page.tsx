@@ -255,9 +255,14 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
               📞 Call Rider
             </a>
           )}
-          <div className="flex-1 bg-midnight-800 border border-midnight-700 rounded-xl py-3 flex items-center justify-center gap-2 text-gray-400 text-sm font-semibold">
-            💬 Chat (soon)
-          </div>
+          <a
+            href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '254797100144'}?text=${encodeURIComponent(`Hi TaskIt Support, I need help with order #${order.id.slice(-7).toUpperCase()}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 bg-[#25D366]/15 border border-[#25D366]/30 rounded-xl py-3 flex items-center justify-center gap-2 text-[#25D366] text-sm font-semibold hover:bg-[#25D366]/25 transition-colors"
+          >
+            💬 WhatsApp
+          </a>
         </div>
       )}
 

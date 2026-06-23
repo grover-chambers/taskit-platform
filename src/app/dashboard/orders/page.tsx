@@ -26,11 +26,16 @@ export default function OrdersPage() {
   const [tab, setTab] = useState<Tab>('active');
 
   useEffect(() => {
-    fetch('/api/orders?role=customer')
-      .then(r => r.json())
-      .then(data => setOrders(data.orders || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const load = () => {
+      fetch('/api/orders?role=customer')
+        .then(r => r.json())
+        .then(data => setOrders(data.orders || []))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    };
+    load();
+    const interval = setInterval(load, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const activeOrders = orders.filter(o => !['DELIVERED', 'CANCELLED'].includes(o.status));

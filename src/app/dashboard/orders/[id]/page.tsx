@@ -52,6 +52,14 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   useEffect(() => {
     if (!order) return;
     const isActive = ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'].includes(order.status);
+    if (!isActive) return;
+    const interval = setInterval(fetchOrder, 10000);
+    return () => clearInterval(interval);
+  }, [order?.status, fetchOrder]);
+
+  useEffect(() => {
+    if (!order) return;
+    const isActive = ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'].includes(order.status);
     if (isActive) {
       fetchRiderLocation();
       const interval = setInterval(fetchRiderLocation, 10000);

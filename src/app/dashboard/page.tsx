@@ -10,20 +10,27 @@ export default function CustomerDashboard() {
   const [otpBanner, setOtpBanner] = useState<{ otp: string; orderId: string; description: string } | null>(null);
 
   useEffect(() => {
-    fetch('/api/orders?role=customer')
-      .then(r => r.json())
-      .then(data => {
-        const active = data.orders?.filter(
-          (o: any) => !['DELIVERED', 'CANCELLED'].includes(o.status)
-        ) || [];
-        setActiveOrders(active);
-        const inTransitWithOtp = active.find((o: any) => o.status === 'IN_TRANSIT' && o.deliveryOtp);
-        if (inTransitWithOtp) {
-          setOtpBanner({ otp: inTransitWithOtp.deliveryOtp, orderId: inTransitWithOtp.id, description: inTransitWithOtp.errandDescription });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const load = () => {
+      fetch('/api/orders?role=customer')
+        .then(r => r.json())
+        .then(data => {
+          const active = data.orders?.filter(
+            (o: any) => !['DELIVERED', 'CANCELLED'].includes(o.status)
+          ) || [];
+          setActiveOrders(active);
+          const inTransitWithOtp = active.find((o: any) => o.status === 'IN_TRANSIT' && o.deliveryOtp);
+          if (inTransitWithOtp) {
+            setOtpBanner({ otp: inTransitWithOtp.deliveryOtp, orderId: inTransitWithOtp.id, description: inTransitWithOtp.errandDescription });
+          } else {
+            setOtpBanner(null);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    };
+    load();
+    const interval = setInterval(load, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

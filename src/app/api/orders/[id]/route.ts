@@ -88,6 +88,25 @@ export async function PATCH(
     if (mpesaTransactionCode) updateData.mpesaTransactionCode = mpesaTransactionCode;
 
     const result = await prisma.$transaction(async (tx) => {
+      if (status === 'IN_TRANSIT' && !currentOrder.deliveryOtp) {
+        const otp = String(Math.floor(1000 + Math.random() * 9000));
+        await tx.order.update({
+          where: { id: params.id },
+          data: { deliveryOtp: otp },
+        });
+        const customer = await tx.user.findUnique({ where: { id: currentOrder.customerId } });
+        if (customer) {
+          await tx.notification.create({
+            data: {
+              userId: customer.id,
+              title: 'Delivery OTP',
+              body: `Your delivery OTP is ${otp}. Share this with your rider to confirm delivery.`,
+              type: 'ORDER',
+            },
+          });
+        }
+      }
+
       const order = await tx.order.update({
         where: { id: params.id },
         data: updateData,
@@ -104,6 +123,9 @@ export async function PATCH(
       }
 
       if (status === 'DELIVERED' && order.riderId) {
+        if (currentOrder.deliveryOtp && body.deliveryOtp !== currentOrder.deliveryOtp) {
+          throw new Error('Invalid OTP');
+        }
         await tx.riderDetail.update({
           where: { id: order.riderId },
           data: {

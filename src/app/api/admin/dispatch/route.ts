@@ -50,12 +50,19 @@ export async function GET() {
         status: { in: ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'] },
         riderId: { not: null },
       },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        errandDescription: true,
+        orderType: true,
+        deliveryOtp: true,
+        pickupLocation: true,
+        dropoffLocation: true,
         customer: { select: { name: true, phone: true } },
         rider: {
           select: { id: true, name: true, phone: true, riderDetail: { select: { plateNumber: true } } },
         },
-        zone: true,
+        zone: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 20,

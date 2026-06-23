@@ -8,41 +8,11 @@ const LiveMap = dynamic(() => import('@/components/LiveMap'), {
   loading: () => <div className="h-full w-full bg-midnight-800 rounded-2xl flex items-center justify-center text-gray-500">Loading Map...</div>,
 });
 
-type AssignableOrder = {
-  id: string;
-  errandDescription: string;
-  totalAmount: number;
-  paymentMethod: string;
-  createdAt: string;
-  customer: { id: string; name: string; phone: string };
-  zone: { id: string; name: string; price: number };
-  shop: { id: string; name: string; location: string | null } | null;
-};
-
-type AvailableRider = {
-  id: string;
-  licenseNumber: string;
-  plateNumber: string;
-  rating: number;
-  totalTrips: number;
-  user: { id: string; name: string; phone: string };
-  location: { lat: number; lng: number; updatedAt: string } | null;
-};
-
-type ActiveOrder = {
-  id: string;
-  status: string;
-  errandDescription: string;
-  customer: { name: string; phone: string };
-  rider: { id: string; name: string; phone: string; riderDetail: { plateNumber: string } };
-  zone: { name: string };
-};
-
 export default function AdminDispatchPage() {
-  const [assignable, setAssignable] = useState<AssignableOrder[]>([]);
+  const [assignable, setAssignable] = useState<any[]>([]);
   const [awaitingPayment, setAwaitingPayment] = useState<any[]>([]);
-  const [availableRiders, setAvailableRiders] = useState<AvailableRider[]>([]);
-  const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
+  const [availableRiders, setAvailableRiders] = useState<any[]>([]);
+  const [activeOrders, setActiveOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
@@ -93,26 +63,24 @@ export default function AdminDispatchPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dispatch Queue</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Dispatch Queue</h1>
           <p className="text-gray-500 text-xs mt-0.5">Assign riders to paid orders</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[9.5px] font-bold bg-gold-500/15 text-gold-500 px-2 py-1 rounded-md">{availableRiders.length} riders online</span>
-        </div>
+        <span className="text-[9.5px] font-bold bg-gold-500/15 text-gold-500 px-2 py-1 rounded-md">{availableRiders.length} riders online</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mb-6">
-        <button onClick={() => setActiveTab('queue')} className={`p-3 rounded-xl text-center transition-colors ${activeTab === 'queue' ? 'bg-gold-500/15 border border-gold-500/30' : 'bg-midnight-800 border border-midnight-700'}`}>
-          <div className="font-bold text-lg text-gold-500">{assignablesCount}</div>
-          <div className="text-[9px] text-gray-500">Ready to Assign</div>
+        <button onClick={() => setActiveTab('queue')} className={`p-2 md:p-3 rounded-xl text-center transition-colors ${activeTab === 'queue' ? 'bg-gold-500/15 border border-gold-500/30' : 'bg-midnight-800 border border-midnight-700'}`}>
+          <div className="font-bold text-base md:text-lg text-gold-500">{assignablesCount}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-500">Ready to Assign</div>
         </button>
-        <button onClick={() => setActiveTab('active')} className={`p-3 rounded-xl text-center transition-colors ${activeTab === 'active' ? 'bg-blue-500/15 border border-blue-500/30' : 'bg-midnight-800 border border-midnight-700'}`}>
-          <div className="font-bold text-lg text-blue-400">{activeCount}</div>
-          <div className="text-[9px] text-gray-500">In Progress</div>
+        <button onClick={() => setActiveTab('active')} className={`p-2 md:p-3 rounded-xl text-center transition-colors ${activeTab === 'active' ? 'bg-blue-500/15 border border-blue-500/30' : 'bg-midnight-800 border border-midnight-700'}`}>
+          <div className="font-bold text-base md:text-lg text-blue-400">{activeCount}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-500">In Progress</div>
         </button>
-        <button onClick={() => setActiveTab('unpaid')} className={`p-3 rounded-xl text-center transition-colors ${activeTab === 'unpaid' ? 'bg-orange-500/15 border border-orange-500/30' : 'bg-midnight-800 border border-midnight-700'}`}>
-          <div className="font-bold text-lg text-orange-400">{unpaidCount}</div>
-          <div className="text-[9px] text-gray-500">Awaiting Payment</div>
+        <button onClick={() => setActiveTab('unpaid')} className={`p-2 md:p-3 rounded-xl text-center transition-colors ${activeTab === 'unpaid' ? 'bg-orange-500/15 border border-orange-500/30' : 'bg-midnight-800 border border-midnight-700'}`}>
+          <div className="font-bold text-base md:text-lg text-orange-400">{unpaidCount}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-500">Awaiting Payment</div>
         </button>
       </div>
 
@@ -128,9 +96,17 @@ export default function AdminDispatchPage() {
               <div className="px-4 py-3 flex justify-between items-center border-b border-midnight-700">
                 <div>
                   <div className="text-white text-sm font-semibold">#{order.id.slice(-7).toUpperCase()}</div>
-                  <div className="text-gray-500 text-[9.5px]">{order.zone?.name} · {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  <div className="text-gray-500 text-[9.5px] flex items-center gap-1.5 flex-wrap">
+                    <span>{order.zone?.name}</span>
+                    <span>· {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    {order.orderType && (
+                      <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${order.orderType === 'MARKETPLACE' ? 'bg-purple-500/15 text-purple-300' : 'bg-green-500/15 text-green-300'}`}>
+                        {order.orderType}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-gold-500 font-bold">KSh {order.totalAmount || order.zone?.price || '—'}</div>
+                <div className="text-gold-500 font-bold text-sm">KSh {order.totalAmount || order.zone?.price || '—'}</div>
               </div>
               <div className="px-4 py-3">
                 <p className="text-gray-300 text-xs mb-2">{order.errandDescription}</p>
@@ -141,7 +117,7 @@ export default function AdminDispatchPage() {
                 {selectedOrder === order.id ? (
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Select Rider</p>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
                       {availableRiders.length === 0 && (
                         <p className="text-gray-500 text-xs">No riders available</p>
                       )}
@@ -184,10 +160,17 @@ export default function AdminDispatchPage() {
               No active deliveries
             </div>
           )}
-          {activeOrders.map((order) => (
+          {activeOrders.map((order: any) => (
             <div key={order.id} className="bg-midnight-800/80 border border-midnight-700 rounded-2xl p-4">
               <div className="flex justify-between items-center mb-2">
-                <div className="text-white text-sm font-semibold">#{order.id.slice(-7).toUpperCase()}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-white text-sm font-semibold">#{order.id.slice(-7).toUpperCase()}</div>
+                  {order.orderType && (
+                    <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${order.orderType === 'MARKETPLACE' ? 'bg-purple-500/15 text-purple-300' : 'bg-green-500/15 text-green-300'}`}>
+                      {order.orderType}
+                    </span>
+                  )}
+                </div>
                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                   order.status === 'ASSIGNED' ? 'bg-orange-500/15 text-orange-400' :
                   order.status === 'PICKED_UP' ? 'bg-blue-500/15 text-blue-400' :
@@ -197,10 +180,16 @@ export default function AdminDispatchPage() {
                 </span>
               </div>
               <p className="text-gray-400 text-xs mb-2">{order.errandDescription}</p>
-              <div className="flex justify-between text-[9.5px] text-gray-500">
+              <div className="flex flex-col sm:flex-row sm:justify-between text-[9.5px] text-gray-500 gap-1">
                 <span>🛵 {order.rider?.name} · {order.rider?.riderDetail?.plateNumber}</span>
                 <span>👤 {order.customer?.name}</span>
               </div>
+              {order.deliveryOtp && (
+                <div className="mt-2 bg-gold-500/10 border border-gold-500/20 rounded-lg px-3 py-1.5 text-center">
+                  <span className="text-[9px] text-gray-400">Delivery OTP: </span>
+                  <span className="text-gold-500 font-mono font-bold text-sm tracking-widest">{order.deliveryOtp}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -228,7 +217,7 @@ export default function AdminDispatchPage() {
         </div>
       )}
 
-      <div className="bg-midnight-800/50 rounded-2xl border border-midnight-700 overflow-hidden" style={{ height: '320px' }}>
+      <div className="bg-midnight-800/50 rounded-2xl border border-midnight-700 overflow-hidden" style={{ height: '280px' }}>
         <LiveMap />
       </div>
     </div>

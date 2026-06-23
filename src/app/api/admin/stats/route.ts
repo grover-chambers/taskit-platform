@@ -16,7 +16,7 @@ export async function GET() {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    const [todayOrders, yesterdayOrders, onlineRiders, completedToday, totalZones] = await Promise.all([
+    const [todayOrders, yesterdayOrders, onlineRiders, completedToday, totalZones, unverifiedRiders, totalRiders] = await Promise.all([
       prisma.order.findMany({
         where: { createdAt: { gte: today } },
         select: { totalAmount: true, paymentStatus: true },
@@ -25,11 +25,13 @@ export async function GET() {
         where: { createdAt: { gte: yesterday, lt: today } },
         select: { totalAmount: true, paymentStatus: true },
       }),
-      prisma.riderDetail.count({ where: { isOnline: true } }),
+      prisma.riderDetail.count({ where: { isOnline: true, kycStatus: 'VERIFIED' } }),
       prisma.order.count({
         where: { status: 'DELIVERED', createdAt: { gte: today } },
       }),
       prisma.zone.count({ where: { active: true } }),
+      prisma.riderDetail.count({ where: { kycStatus: { in: ['PENDING', 'REJECTED'] } } }),
+      prisma.riderDetail.count(),
     ]);
 
     const revenue = todayOrders
@@ -61,6 +63,8 @@ export async function GET() {
       completionDelta: 2,
       zonesLow: 0,
       totalZones,
+      unverifiedRiders,
+      totalRiders,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

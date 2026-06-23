@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 const DEMO_ACCOUNTS = [
   { role: 'Admin', email: 'admin@taskit.co.ke', password: 'MunyagaMartin.12', dashboard: '/admin', color: 'from-red-600 to-red-700' },
   { role: 'Customer', email: 'wanjiru@email.com', password: 'customer123', dashboard: '/dashboard', color: 'from-brand-500 to-yellow-600' },
-  { role: 'Vendor', email: 'mama.njeri@taskit.co.ke', password: 'vendor123', dashboard: '/vendor', color: 'from-purple-600 to-purple-700' },
   { role: 'Rider', email: 'peter.m@taskit.co.ke', password: 'rider123', dashboard: '/rider', color: 'from-blue-600 to-blue-700' },
 ];
 
@@ -24,6 +23,24 @@ export default function LoginPage() {
   const [forgotStatus, setForgotStatus] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
 
+  const ROLE_REDIRECTS: Record<string, string> = {
+    ADMIN: '/admin',
+    RIDER: '/rider',
+    VENDOR: '/vendor',
+    CUSTOMER: '/dashboard',
+  };
+
+  const getRedirectPath = async (): Promise<string> => {
+    try {
+      const res = await fetch('/api/auth/session');
+      const data = await res.json();
+      const role = data?.user?.role;
+      return ROLE_REDIRECTS[role] || '/dashboard';
+    } catch {
+      return '/dashboard';
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -33,7 +50,8 @@ export default function LoginPage() {
     if (res?.error) {
       setError('Invalid email or password');
     } else {
-      router.push('/dashboard');
+      const redirect = await getRedirectPath();
+      router.push(redirect);
       router.refresh();
     }
   };
@@ -46,7 +64,8 @@ export default function LoginPage() {
     if (res?.error) {
       setError('Demo login failed — run seed first');
     } else {
-      router.push(acc.dashboard);
+      const redirect = await getRedirectPath();
+      router.push(redirect);
       router.refresh();
     }
   };
@@ -146,7 +165,7 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-midnight-700" /></div>
             <div className="relative flex justify-center"><span className="bg-midnight-900 px-4 text-sm text-gray-500">Demo Quick Login</span></div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {DEMO_ACCOUNTS.map(acc => (
               <button
                 key={acc.role}

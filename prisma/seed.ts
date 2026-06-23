@@ -110,6 +110,7 @@ async function main() {
     data: {
       id: 'order-001', errandDescription: 'Grocery run — Tuskys: Unga Pembe 2kg x3, Cooking oil',
       status: 'IN_TRANSIT', paymentStatus: 'PAID', totalAmount: 680,
+      deliveryOtp: '4729',
       customerId: customerUser.id, riderId: riderUser.id, zoneId: westlands.id,
       shopId: shop.id, vendorId: vendorUser.id, assignedAt: new Date(Date.now() - 30 * 60000),
     },
@@ -156,6 +157,7 @@ async function main() {
     data: {
       id: 'order-006', errandDescription: 'Grocery run — Naivas: Milk, Bread, Eggs',
       status: 'DELIVERED', paymentStatus: 'PAID', totalAmount: 450,
+      deliveryOtp: '8316',
       customerId: customerUser.id, riderId: riderUser.id, zoneId: cbd.id, assignedAt: new Date(Date.now() - 3600000),
     },
   });
@@ -167,7 +169,7 @@ async function main() {
       { orderId: order1.id, status: 'ACCEPTED', note: 'Vendor accepted the order' },
       { orderId: order1.id, status: 'ASSIGNED', note: 'Rider Peter M. assigned' },
       { orderId: order1.id, status: 'PICKED_UP', note: 'Items picked up from Mama Njeri\'s' },
-      { orderId: order1.id, status: 'IN_TRANSIT', note: 'Rider en route to delivery' },
+      { orderId: order1.id, status: 'IN_TRANSIT', note: 'Rider en route. Delivery OTP: 4729' },
       { orderId: order2.id, status: 'RECEIVED', note: 'Order placed by customer' },
       { orderId: order2.id, status: 'ACCEPTED', note: 'Vendor accepted' },
       { orderId: order3.id, status: 'RECEIVED', note: 'Order placed by customer' },

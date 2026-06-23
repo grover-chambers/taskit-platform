@@ -7,6 +7,7 @@ export default function CustomerDashboard() {
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [comingSoon, setComingSoon] = useState<string | null>(null);
+  const [otpBanner, setOtpBanner] = useState<{ otp: string; orderId: string; description: string } | null>(null);
 
   useEffect(() => {
     fetch('/api/orders?role=customer')
@@ -16,6 +17,10 @@ export default function CustomerDashboard() {
           (o: any) => !['DELIVERED', 'CANCELLED'].includes(o.status)
         ) || [];
         setActiveOrders(active);
+        const inTransitWithOtp = active.find((o: any) => o.status === 'IN_TRANSIT' && o.deliveryOtp);
+        if (inTransitWithOtp) {
+          setOtpBanner({ otp: inTransitWithOtp.deliveryOtp, orderId: inTransitWithOtp.id, description: inTransitWithOtp.errandDescription });
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -32,6 +37,23 @@ export default function CustomerDashboard() {
             <button onClick={() => setComingSoon(null)} className="bg-gold-500 text-midnight-950 px-6 py-2 rounded-xl font-bold text-sm hover:bg-gold-400 transition-colors">Got it</button>
           </div>
         </div>
+      )}
+
+      {/* Delivery OTP Banner */}
+      {otpBanner && (
+        <Link href={`/dashboard/orders/${otpBanner.orderId}`} className="block bg-gradient-to-r from-gold-500/20 via-gold-500/10 to-gold-500/20 border border-gold-500/40 rounded-2xl p-4 mb-5 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gold-500 animate-pulse" />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gold-500 text-[10px] font-bold uppercase tracking-wider">Delivery OTP</p>
+              <p className="text-gray-300 text-xs mt-0.5 truncate max-w-[55%]">{otpBanner.description}</p>
+              <p className="text-gray-500 text-[9px] mt-0.5">Rider is on the way — share this code to confirm delivery</p>
+            </div>
+            <div className="bg-midnight-950/60 border border-gold-500/50 rounded-xl px-4 py-2 text-center">
+              <p className="text-gold-500 text-2xl font-bold font-mono tracking-[0.4em]">{otpBanner.otp}</p>
+            </div>
+          </div>
+        </Link>
       )}
 
       {/* Search Bar */}

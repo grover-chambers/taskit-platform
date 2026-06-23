@@ -102,6 +102,12 @@ export default function OrdersPage() {
                     <span className="text-gold-500 text-[10px] font-bold">Live tracking available</span>
                   </div>
                 )}
+                {order.status === 'IN_TRANSIT' && order.deliveryOtp && (
+                  <div className="mt-2 bg-gold-500/10 border border-gold-500/30 rounded-lg px-3 py-2 flex items-center justify-between">
+                    <span className="text-[9px] text-gray-400 font-semibold">Delivery OTP</span>
+                    <span className="text-gold-500 font-mono font-bold text-lg tracking-[0.3em]">{order.deliveryOtp}</span>
+                  </div>
+                )}
               </Link>
             );
           })

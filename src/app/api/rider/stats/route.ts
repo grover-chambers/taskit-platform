@@ -286,36 +286,38 @@ export async function PATCH(request: Request) {
         const zone = await tx.zone.findUnique({ where: { id: order.zoneId } });
         const earning = zone ? Math.round(zone.price * 0.7) : 100;
 
-        const payout = await tx.payout.create({
-          data: {
-            riderId: session.user.id,
-            amount: earning,
-            status: 'PENDING',
-            method: 'MPESA',
-          },
-        });
-
-        await tx.riderEarning.create({
-          data: {
-            riderId: session.user.id,
-            orderId,
-            amount: earning,
-            payoutStatus: 'UNPAID',
-            payoutId: payout.id,
-          },
-        });
-
-        const effectiveTodayEarnings = shouldResetEarnings ? earning : (rider?.todayEarnings || 0) + earning;
-        if (!shouldResetEarnings) {
-          await tx.riderDetail.update({
-            where: { id: session.user.id },
-            data: { todayEarnings: { increment: earning } },
+        const existingEarning = await tx.riderEarning.findUnique({ where: { orderId } });
+        if (!existingEarning) {
+          const payout = await tx.payout.create({
+            data: {
+              riderId: session.user.id,
+              amount: earning,
+              status: 'PENDING',
+              method: 'MPESA',
+            },
           });
-        } else {
-          await tx.riderDetail.update({
-            where: { id: session.user.id },
-            data: { todayEarnings: earning },
+
+          await tx.riderEarning.create({
+            data: {
+              riderId: session.user.id,
+              orderId,
+              amount: earning,
+              payoutStatus: 'UNPAID',
+              payoutId: payout.id,
+            },
           });
+
+          if (!shouldResetEarnings) {
+            await tx.riderDetail.update({
+              where: { id: session.user.id },
+              data: { todayEarnings: { increment: earning } },
+            });
+          } else {
+            await tx.riderDetail.update({
+              where: { id: session.user.id },
+              data: { todayEarnings: earning },
+            });
+          }
         }
 
         await tx.order.update({

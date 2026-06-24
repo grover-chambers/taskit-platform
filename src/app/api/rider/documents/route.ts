@@ -28,13 +28,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { docType, url } = await request.json();
+    const { docType, url, documentNumber, expiryDate } = await request.json();
 
     if (!docType || !url) {
       return NextResponse.json({ error: 'docType and url required' }, { status: 400 });
     }
 
-    const validTypes = ['ID_CARD', 'DRIVING_LICENSE', 'GOOD_CONDUCT', 'PASSPORT_PHOTO', 'OTHER'];
+    const validTypes = ['ID_FRONT', 'ID_BACK', 'DRIVING_LICENSE', 'GUARANTOR_ID_FRONT', 'GUARANTOR_ID_BACK', 'GOOD_CONDUCT', 'INSURANCE_POLICY', 'PASSPORT_PHOTO'];
     if (!validTypes.includes(docType)) {
       return NextResponse.json({ error: 'Invalid docType' }, { status: 400 });
     }
@@ -43,15 +43,24 @@ export async function POST(request: Request) {
       where: { riderId: session.user.id, docType },
     });
 
+    const docData: any = {
+      url,
+      status: 'PENDING',
+      reviewedBy: null,
+      reviewedAt: null,
+      documentNumber: documentNumber ?? null,
+      expiryDate: expiryDate ? new Date(expiryDate) : null,
+    };
+
     let document;
     if (existing) {
       document = await prisma.riderDocument.update({
         where: { id: existing.id },
-        data: { url, status: 'PENDING', reviewedBy: null, reviewedAt: null },
+        data: docData,
       });
     } else {
       document = await prisma.riderDocument.create({
-        data: { riderId: session.user.id, docType, url },
+        data: { riderId: session.user.id, docType, ...docData },
       });
     }
 
@@ -59,17 +68,43 @@ export async function POST(request: Request) {
       where: { riderId: session.user.id },
     });
 
-    const requiredTypes = ['ID_CARD', 'DRIVING_LICENSE', 'GOOD_CONDUCT', 'PASSPORT_PHOTO'];
-    const allApproved = requiredTypes.every(t =>
-      allDocs.some(d => d.docType === t && d.status === 'APPROVED')
-    );
-    const anyRejected = allDocs.some(d => d.status === 'REJECTED');
-    const anyPending = allDocs.some(d => d.status === 'PENDING');
+    const isApproved = (t: string) => allDocs.some(d => d.docType === t && d.status === 'APPROVED');
+
+    const idFrontApproved = isApproved('ID_FRONT');
+    const idBackApproved = isApproved('ID_BACK');
+    const passportPhotoApproved = isApproved('PASSPORT_PHOTO');
+    const hasDrivingLicense = isApproved('DRIVING_LICENSE');
+    const hasGuarantorIds = isApproved('GUARANTOR_ID_FRONT') && isApproved('GUARANTOR_ID_BACK');
+    const hasGoodConduct = isApproved('GOOD_CONDUCT');
+    const hasInsurancePolicy = isApproved('INSURANCE_POLICY');
+
+    const allApproved =
+      idFrontApproved &&
+      idBackApproved &&
+      passportPhotoApproved &&
+      (hasDrivingLicense || hasGuarantorIds) &&
+      (hasGoodConduct || hasInsurancePolicy);
+
+    const requiredCategoryTypes = [
+      'ID_FRONT', 'ID_BACK', 'PASSPORT_PHOTO',
+      'DRIVING_LICENSE', 'GUARANTOR_ID_FRONT', 'GUARANTOR_ID_BACK',
+      'GOOD_CONDUCT', 'INSURANCE_POLICY',
+    ];
+    const anyRejected = allDocs
+      .filter(d => requiredCategoryTypes.includes(d.docType))
+      .some(d => d.status === 'REJECTED');
+    const anyPending = allDocs
+      .filter(d => requiredCategoryTypes.includes(d.docType))
+      .some(d => d.status === 'PENDING');
 
     let kycStatus = 'PENDING';
-    if (allApproved) kycStatus = 'VERIFIED';
-    else if (anyRejected) kycStatus = 'REJECTED';
-    else if (anyPending) kycStatus = 'PENDING';
+    if (anyRejected) {
+      kycStatus = 'REJECTED';
+    } else if (allApproved) {
+      kycStatus = 'VERIFIED';
+    } else {
+      kycStatus = 'PENDING';
+    }
 
     await prisma.riderDetail.update({
       where: { id: session.user.id },

@@ -12,11 +12,14 @@ function whatsappUrl(phone: string, name?: string) {
 }
 
 const DOC_LABELS: Record<string, string> = {
-  ID_CARD: 'National ID',
+  ID_FRONT: 'ID Front',
+  ID_BACK: 'ID Back',
   DRIVING_LICENSE: 'Driving License',
+  GUARANTOR_ID_FRONT: 'Guarantor ID Front',
+  GUARANTOR_ID_BACK: 'Guarantor ID Back',
   GOOD_CONDUCT: 'Good Conduct',
+  INSURANCE_POLICY: 'Insurance',
   PASSPORT_PHOTO: 'Passport Photo',
-  OTHER: 'Other ID',
 };
 
 const KYC_COLORS: Record<string, string> = {
@@ -32,6 +35,7 @@ export default function FleetManagement() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'kyc'>('all');
   const [search, setSearch] = useState('');
+  const [expandedRider, setExpandedRider] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -58,31 +62,23 @@ export default function FleetManagement() {
         body: JSON.stringify({ status }),
       });
       if (res.ok) {
-        setDocuments(prev =>
-          prev.map(d => d.id === docId ? { ...d, status, reviewedAt: new Date() } : d)
-        );
+        await fetchData();
       }
     } catch {}
     setProcessingId(null);
   };
 
-  const groupedByRider = documents.reduce((acc: any, doc: any) => {
-    const riderId = doc.riderId;
-    if (!acc[riderId]) {
-      acc[riderId] = { rider: doc.rider, docs: [] };
-    }
-    acc[riderId].docs.push(doc);
-    return acc;
-  }, {});
-
   const filteredRiders = riders.filter((r: any) => {
     if (!search) return true;
     const q = search.toLowerCase();
+    const idNum = r.documents?.find((d: any) => d.docType === 'ID_FRONT')?.documentNumber || '';
+    const dlNum = r.documents?.find((d: any) => d.docType === 'DRIVING_LICENSE')?.documentNumber || '';
     return (
       r.user?.name?.toLowerCase().includes(q) ||
       r.user?.email?.toLowerCase().includes(q) ||
       r.plateNumber?.toLowerCase().includes(q) ||
-      r.licenseNumber?.toLowerCase().includes(q)
+      idNum.toLowerCase().includes(q) ||
+      dlNum.toLowerCase().includes(q)
     );
   });
 
@@ -124,7 +120,7 @@ export default function FleetManagement() {
           <div className="mb-4">
             <input
               type="text"
-              placeholder="Search by name, email, plate..."
+              placeholder="Search by name, email, plate, ID/LL number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-midnight-800 border border-midnight-700 text-white px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-gold-500/50 placeholder:text-gray-600"
@@ -137,79 +133,143 @@ export default function FleetManagement() {
                 {search ? 'No riders match your search' : 'No riders found'}
               </div>
             )}
-            {filteredRiders.map((rider: any) => (
-              <div key={rider.id} className="bg-midnight-800/80 border border-midnight-700 rounded-2xl overflow-hidden">
-                <div className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-midnight-700 rounded-full flex items-center justify-center text-gold-500 text-sm font-bold flex-shrink-0">
-                      {rider.user?.name?.charAt(0) || '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-white font-bold text-sm truncate">{rider.user?.name || 'Unknown'}</p>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${KYC_COLORS[rider.kycStatus] || KYC_COLORS.PENDING}`}>
-                          {rider.kycStatus || 'PENDING'}
-                        </span>
+            {filteredRiders.map((rider: any) => {
+              const docs = rider.documents || [];
+              const idDoc = docs.find((d: any) => d.docType === 'ID_FRONT');
+              const dlDoc = docs.find((d: any) => d.docType === 'DRIVING_LICENSE');
+              const isExpanded = expandedRider === rider.id;
+
+              const expiredDocs = docs.filter((d: any) => {
+                if (!d.expiryDate) return false;
+                return new Date(d.expiryDate) < new Date();
+              });
+
+              return (
+                <div key={rider.id} className="bg-midnight-800/80 border border-midnight-700 rounded-2xl overflow-hidden">
+                  <div className="p-4 cursor-pointer" onClick={() => setExpandedRider(isExpanded ? null : rider.id)}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-midnight-700 rounded-full flex items-center justify-center text-gold-500 text-sm font-bold flex-shrink-0">
+                        {rider.user?.name?.charAt(0) || '?'}
                       </div>
-                      <p className="text-gray-500 text-xs truncate">{rider.user?.email} · {rider.user?.phone}</p>
-                    </div>
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${rider.isOnline ? 'bg-green-400' : 'bg-gray-600'}`} />
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                    <div>
-                      <div className="text-[9px] text-gray-500">Trips</div>
-                      <div className="text-white text-sm font-semibold">{rider.totalTrips || 0}</div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] text-gray-500">Rating</div>
-                      <div className="text-white text-sm font-semibold">⭐ {rider.rating?.toFixed(1) || '5.0'}</div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] text-gray-500">Today Earnings</div>
-                      <div className="text-gold-500 text-sm font-semibold">KSh {rider.todayEarnings || 0}</div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] text-gray-500">Vehicle</div>
-                      <div className="text-white text-sm font-semibold truncate">{rider.vehicleType || '—'} · {rider.plateNumber}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 text-[9.5px]">
-                    <span className={`px-2 py-0.5 rounded ${rider.locationEnabled ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
-                      📍 {rider.locationEnabled ? 'Location On' : 'Location Off'}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded ${rider.notificationsEnabled ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
-                      🔔 {rider.notificationsEnabled ? 'Notifications On' : 'Notifications Off'}
-                    </span>
-                    <span className="text-gray-500">License: {rider.licenseNumber}</span>
-                    {rider.user?.phone && (
-                      <a
-                        href={whatsappUrl(rider.user.phone, rider.user.name)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2 py-0.5 rounded bg-green-600/15 text-green-400 hover:bg-green-600/25 transition-colors cursor-pointer"
-                      >
-                        WhatsApp
-                      </a>
-                    )}
-                  </div>
-
-                  {rider.documents && rider.documents.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-midnight-700">
-                      <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Documents ({rider.documents.length})</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {rider.documents.map((doc: any) => (
-                          <span key={doc.id} className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${doc.status === 'APPROVED' ? 'bg-green-500/15 text-green-400' : doc.status === 'REJECTED' ? 'bg-red-500/15 text-red-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
-                            {DOC_LABELS[doc.docType] || doc.docType}: {doc.status}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-white font-bold text-sm truncate">{rider.user?.name || 'Unknown'}</p>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${KYC_COLORS[rider.kycStatus] || KYC_COLORS.PENDING}`}>
+                            {rider.kycStatus || 'PENDING'}
                           </span>
+                          {expiredDocs.length > 0 && (
+                            <span className="text-[9px] bg-red-500/15 text-red-400 px-1.5 py-0.5 rounded-full font-bold">{expiredDocs.length} expired</span>
+                          )}
+                        </div>
+                        <p className="text-gray-500 text-xs truncate">{rider.user?.email} · {rider.user?.phone}</p>
+                      </div>
+                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${rider.isOnline ? 'bg-green-400' : 'bg-gray-600'}`} />
+                      <svg className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+                      {idDoc?.documentNumber && (
+                        <div>
+                          <div className="text-[9px] text-gray-500">ID Number</div>
+                          <div className="text-white text-sm font-mono font-semibold">{idDoc.documentNumber}</div>
+                        </div>
+                      )}
+                      {dlDoc?.documentNumber && (
+                        <div>
+                          <div className="text-[9px] text-gray-500">DL Number</div>
+                          <div className="text-white text-sm font-mono font-semibold">{dlDoc.documentNumber}</div>
+                        </div>
+                      )}
+                      <div>
+                        <div className="text-[9px] text-gray-500">Rating</div>
+                        <div className="text-white text-sm font-semibold">⭐ {rider.rating?.toFixed(1) || '5.0'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-gray-500">Trips</div>
+                        <div className="text-white text-sm font-semibold">{rider.totalTrips || 0}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-gray-500">Vehicle</div>
+                        <div className="text-white text-sm font-semibold truncate">{rider.vehicleType || '—'} · {rider.plateNumber}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 text-[9.5px]">
+                      {docs.map((doc: any) => (
+                        <span key={doc.id} className={`px-2 py-0.5 rounded-full font-bold ${doc.status === 'APPROVED' ? 'bg-green-500/15 text-green-400' : doc.status === 'REJECTED' ? 'bg-red-500/15 text-red-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
+                          {DOC_LABELS[doc.docType] || doc.docType}
+                          {doc.documentNumber && <span className="ml-1 opacity-70">#{doc.documentNumber}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="border-t border-midnight-700 p-4 bg-midnight-900/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Document Details</p>
+                        {rider.user?.phone && (
+                          <a
+                            href={whatsappUrl(rider.user.phone, rider.user.name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] px-2 py-0.5 rounded bg-green-600/15 text-green-400 hover:bg-green-600/25 transition-colors cursor-pointer"
+                          >
+                            WhatsApp
+                          </a>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {docs.map((doc: any) => (
+                          <div key={doc.id} className="bg-midnight-800 border border-midnight-700 rounded-xl p-3 flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white text-sm font-semibold">{DOC_LABELS[doc.docType] || doc.docType}</span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${doc.status === 'APPROVED' ? 'bg-green-500/15 text-green-400' : doc.status === 'REJECTED' ? 'bg-red-500/15 text-red-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
+                                  {doc.status}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                                {doc.documentNumber && <span className="font-mono text-gold-500/80">#{doc.documentNumber}</span>}
+                                {doc.expiryDate && (
+                                  <span className={new Date(doc.expiryDate) < new Date() ? 'text-red-400' : ''}>
+                                    Exp: {new Date(doc.expiryDate).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    {new Date(doc.expiryDate) < new Date() && ' (EXPIRED)'}
+                                  </span>
+                                )}
+                                <span>Uploaded: {new Date(doc.createdAt).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                              </div>
+                            </div>
+                            {doc.url && (
+                              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-gold-500 text-[10px] hover:underline flex-shrink-0">View</a>
+                            )}
+                          </div>
                         ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mt-4 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Location</span>
+                          <span className={rider.locationEnabled ? 'text-green-400' : 'text-red-400'}>{rider.locationEnabled ? 'On' : 'Off'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Notifications</span>
+                          <span className={rider.notificationsEnabled ? 'text-green-400' : 'text-red-400'}>{rider.notificationsEnabled ? 'On' : 'Off'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">License</span>
+                          <span className="text-white">{rider.licenseNumber || '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Today Earnings</span>
+                          <span className="text-gold-500">KSh {rider.todayEarnings || 0}</span>
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -218,22 +278,24 @@ export default function FleetManagement() {
         <div className="space-y-6">
           {documents.length === 0 ? (
             <div className="bg-midnight-800/50 backdrop-blur-sm rounded-2xl border border-midnight-700 p-8 text-gray-400 text-center">
-              No pending documents to review
+              No documents to review
             </div>
           ) : (
-            Object.entries(groupedByRider).map(([riderId, group]: [string, any]) => (
-              <div key={riderId} className="bg-midnight-800/50 backdrop-blur-sm rounded-2xl border border-midnight-700 overflow-hidden">
+            documents.map((group: any) => (
+              <div key={group.rider?.id || Math.random()} className="bg-midnight-800/50 backdrop-blur-sm rounded-2xl border border-midnight-700 overflow-hidden">
                 <div className="px-4 py-3 bg-midnight-900/50 border-b border-midnight-700 flex items-center gap-3">
                   <div className="w-8 h-8 bg-midnight-700 rounded-full flex items-center justify-center text-gold-500 text-sm font-bold">
                     {group.rider?.user?.name?.charAt(0) || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-bold text-sm">{group.rider?.user?.name || 'Unknown'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-white font-bold text-sm">{group.rider?.user?.name || 'Unknown'}</p>
+                      <span className={`text-[10px] px-2 py-1 rounded-full font-bold flex-shrink-0 ${KYC_COLORS[group.rider?.kycStatus] || KYC_COLORS.PENDING}`}>
+                        {group.rider?.kycStatus || 'PENDING'}
+                      </span>
+                    </div>
                     <p className="text-gray-500 text-xs truncate">{group.rider?.user?.email} · {group.rider?.user?.phone}</p>
                   </div>
-                  <span className={`text-[10px] px-2 py-1 rounded-full font-bold flex-shrink-0 ${KYC_COLORS[group.rider?.kycStatus] || KYC_COLORS.PENDING}`}>
-                    {group.rider?.kycStatus || 'PENDING'}
-                  </span>
                   {group.rider?.user?.phone && (
                     <a
                       href={whatsappUrl(group.rider.user.phone, group.rider.user.name)}
@@ -242,12 +304,12 @@ export default function FleetManagement() {
                       className="text-green-400 hover:text-green-300 transition-colors flex-shrink-0"
                       title="WhatsApp rider"
                     >
-                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.881 11.881 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.881 11.881 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                     </a>
                   )}
                 </div>
                 <div className="p-4 space-y-3">
-                  {group.docs.map((doc: any) => (
+                  {(group.documents || []).map((doc: any) => (
                     <div key={doc.id} className="bg-midnight-900/40 border border-midnight-700 rounded-xl p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
@@ -256,6 +318,15 @@ export default function FleetManagement() {
                             <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${doc.status === 'APPROVED' ? 'bg-green-500/15 text-green-400' : doc.status === 'REJECTED' ? 'bg-red-500/15 text-red-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
                               {doc.status}
                             </span>
+                          </div>
+                          <div className="text-[10px] text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                            {doc.documentNumber && <span className="font-mono text-gold-500/80">#{doc.documentNumber}</span>}
+                            {doc.expiryDate && (
+                              <span className={new Date(doc.expiryDate) < new Date() ? 'text-red-400' : ''}>
+                                Exp: {new Date(doc.expiryDate).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                {new Date(doc.expiryDate) < new Date() && ' (EXPIRED)'}
+                              </span>
+                            )}
                           </div>
                           <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-gold-500 text-xs hover:underline">View document</a>
                         </div>

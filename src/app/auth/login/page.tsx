@@ -1,8 +1,8 @@
 "use client";
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const DEMO_ACCOUNTS = [
   { role: 'Admin', email: 'admin@taskit.co.ke', password: 'MunyagaMartin.12', dashboard: '/admin', color: 'from-red-600 to-red-700' },
@@ -11,7 +11,16 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><p className="text-gray-500 text-sm">Loading...</p></div>}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,6 +31,15 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotStatus, setForgotStatus] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('reset') === 'true') {
+      setError('');
+    }
+  }, [searchParams]);
+
+  const resetSuccess = searchParams.get('reset') === 'true';
+  const registered = searchParams.get('registered') === 'true';
 
   const ROLE_REDIRECTS: Record<string, string> = {
     ADMIN: '/admin',
@@ -99,14 +117,14 @@ export default function LoginPage() {
         </div>
         <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
           <h1 className="text-3xl font-serif font-bold text-white">Forgot Password?</h1>
-          <p className="text-gray-400 mt-2">Enter your email and we'll notify an admin to reset your password.</p>
+          <p className="text-gray-400 mt-2">Enter your email and we'll send you a reset link.</p>
           <form onSubmit={handleForgotPassword} className="mt-8 space-y-4">
             <div>
               <label className="text-sm font-semibold text-gray-400 block mb-2">Email Address</label>
               <input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required placeholder="you@example.com" className="w-full bg-midnight-800 border border-midnight-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-brand-500 transition-colors placeholder:text-midnight-600" />
             </div>
             {forgotStatus && (
-              <div className={`text-sm text-center p-3 rounded-lg ${forgotStatus.includes('Admin') ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>{forgotStatus}</div>
+              <div className={`text-sm text-center p-3 rounded-lg ${forgotStatus.includes('sent') || forgotStatus.includes('If') ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>{forgotStatus}</div>
             )}
             <button type="submit" disabled={forgotLoading} className="w-full bg-brand-500 text-midnight-950 py-4 rounded-2xl font-bold text-lg shadow-gold mt-4 hover:bg-brand-400 transition-colors active:scale-[0.98] disabled:opacity-50">
               {forgotLoading ? 'Sending Request...' : 'Send Reset Request'}
@@ -131,6 +149,8 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="mt-8 space-y-4">
           {error && <div className="bg-red-900/30 text-red-400 text-sm text-center p-3 rounded-lg">{error}</div>}
+          {resetSuccess && <div className="bg-green-900/30 text-green-400 text-sm text-center p-3 rounded-lg">Password reset successfully! Please sign in with your new password.</div>}
+          {registered && <div className="bg-green-900/30 text-green-400 text-sm text-center p-3 rounded-lg">Account created! Check your email for a welcome message.</div>}
 
           <div>
             <label className="text-sm font-semibold text-gray-400 block mb-2">Email Address</label>

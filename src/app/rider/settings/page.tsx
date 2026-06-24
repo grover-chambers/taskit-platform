@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
+import Link from 'next/link';
 
 export default function RiderSettings() {
   const [showSignOut, setShowSignOut] = useState(false);
@@ -170,6 +171,22 @@ export default function RiderSettings() {
             <div className={`w-6 h-6 bg-white rounded-full absolute top-0.5 shadow transition-all ${notificationsEnabled ? 'right-0.5' : 'left-0.5'}`} />
           </div>
         </div>
+
+        <Link
+          href="/rider/support"
+          className="bg-midnight-800 p-4 rounded-2xl border border-midnight-700 shadow-soft-dark flex justify-between items-center hover:border-gold-500 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-midnight-700 rounded-xl flex items-center justify-center text-blue-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+            </div>
+            <div>
+              <span className="text-white font-semibold block">Support</span>
+              <span className="text-gray-500 text-[10px]">Email or WhatsApp support</span>
+            </div>
+          </div>
+          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+        </Link>
 
         <button
           onClick={() => setShowSignOut(true)}

@@ -14,7 +14,7 @@ export async function GET() {
       include: {
         user: { select: { id: true, name: true, email: true, phone: true, createdAt: true } },
         location: true,
-        documents: { select: { id: true, docType: true, status: true } },
+        documents: { select: { id: true, docType: true, documentNumber: true, expiryDate: true, url: true, status: true, createdAt: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

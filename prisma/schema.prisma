@@ -113,14 +113,16 @@ model RiderDetail {
 }
 
 model RiderDocument {
-  id         String   @id @default(cuid())
-  riderId    String
-  docType    String
-  url        String
-  status     String   @default("PENDING")
-  reviewedBy String?
-  reviewedAt DateTime?
-  createdAt  DateTime @default(now())
+  id            String    @id @default(cuid())
+  riderId       String
+  docType       String
+  url           String
+  documentNumber String?
+  expiryDate    DateTime?
+  status        String    @default("PENDING")
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
 
   rider RiderDetail @relation(fields: [riderId], references: [id], onDelete: Cascade)
 

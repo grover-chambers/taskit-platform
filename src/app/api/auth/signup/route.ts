@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { sendWelcomeEmail } from '@/lib/email';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { name, phone, email, password, role, licenseNumber, plateNumber } = body;
-    if (!name || !phone || !password || !role) {
+    if (!name || !phone || !email || !password || !role) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     if (password.length < 8) {
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
         id: crypto.randomUUID(),
         name,
         phone,
-        email: email || null,
+        email,
         password: hashedPassword,
         role,
       }
@@ -37,6 +39,11 @@ export async function POST(request: Request) {
         }
       });
     }
+
+    sendWelcomeEmail(email, name, role).catch(err => {
+      console.error('Welcome email failed:', err);
+    });
+
     return NextResponse.json({ success: true, message: 'Account created successfully' });
   } catch (error: any) {
     console.error('Signup Error:', error);

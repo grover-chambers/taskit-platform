@@ -23,7 +23,6 @@ export async function GET() {
     });
 
     const allDocs = await prisma.riderDocument.findMany({
-      where: { status: { in: ['PENDING', 'REJECTED'] } },
       include: {
         rider: {
           include: {
@@ -34,7 +33,16 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ documents: allDocs, pending: pendingDocs });
+    const documents = Object.values(
+      allDocs.reduce((acc, doc) => {
+        const key = doc.riderId;
+        if (!acc[key]) acc[key] = { rider: doc.rider, documents: [] };
+        acc[key].documents.push(doc);
+        return acc;
+      }, {} as Record<string, { rider: any; documents: any[] }>)
+    );
+
+    return NextResponse.json({ documents, pending: pendingDocs });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

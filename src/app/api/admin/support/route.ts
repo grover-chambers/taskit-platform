@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendSupportAlertEmail } from '@/lib/email';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -73,6 +74,19 @@ export async function POST(request: Request) {
         messages: true,
       },
     });
+
+    if (priority === 'HIGH' || priority === 'URGENT') {
+      const customerName = ticket.customer?.name || ticket.rider?.name || 'Unknown';
+      sendSupportAlertEmail(
+        ticket.id,
+        ticket.subject || 'New support ticket',
+        ticket.priority,
+        customerName,
+        message,
+      ).catch(err => {
+        console.error('Support alert email failed:', err);
+      });
+    }
 
     return NextResponse.json({ ticket }, { status: 201 });
   } catch (error: any) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendKycStatusEmail } from '@/lib/email';
 
 export async function PATCH(
   request: Request,
@@ -27,10 +28,12 @@ export async function PATCH(
       where: { riderId: doc.riderId },
     });
 
-    const requiredTypes = ['ID_CARD', 'DRIVING_LICENSE', 'GOOD_CONDUCT', 'PASSPORT_PHOTO'];
-    const allApproved = requiredTypes.every(t =>
-      allDocs.some(d => d.docType === t && d.status === 'APPROVED')
-    );
+    const hasId = allDocs.some(d => d.docType === 'ID_FRONT' && d.status === 'APPROVED') && allDocs.some(d => d.docType === 'ID_BACK' && d.status === 'APPROVED');
+    const hasPhoto = allDocs.some(d => d.docType === 'PASSPORT_PHOTO' && d.status === 'APPROVED');
+    const hasDlOrGuarantor = allDocs.some(d => d.docType === 'DRIVING_LICENSE' && d.status === 'APPROVED') || (allDocs.some(d => d.docType === 'GUARANTOR_ID_FRONT' && d.status === 'APPROVED') && allDocs.some(d => d.docType === 'GUARANTOR_ID_BACK' && d.status === 'APPROVED'));
+    const hasGoodConductOrInsurance = allDocs.some(d => d.docType === 'GOOD_CONDUCT' && d.status === 'APPROVED') || allDocs.some(d => d.docType === 'INSURANCE_POLICY' && d.status === 'APPROVED');
+
+    const allApproved = hasId && hasPhoto && hasDlOrGuarantor && hasGoodConductOrInsurance;
     const anyRejected = allDocs.some(d => d.status === 'REJECTED');
 
     let kycStatus = 'PENDING';
@@ -52,6 +55,13 @@ export async function PATCH(
         type: 'SYSTEM',
       },
     });
+
+    const riderUser = await prisma.user.findUnique({ where: { id: doc.riderId } });
+    if (riderUser?.email) {
+      sendKycStatusEmail(riderUser.email, riderUser.name || 'Rider', status).catch(err => {
+        console.error('KYC status email failed:', err);
+      });
+    }
 
     return NextResponse.json({ success: true, document: doc });
   } catch (error: any) {

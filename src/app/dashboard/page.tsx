@@ -154,22 +154,31 @@ export default function CustomerDashboard() {
         </Link>
       </div>
 
-      {/* WhatsApp Support */}
-      <a
-        href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '254797100144'}?text=${encodeURIComponent('Hi TaskIt Support, I need help')}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block bg-[#25D366]/10 border border-[#25D366]/30 p-4 rounded-2xl mb-4 hover:bg-[#25D366]/15 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#25D366]/20 text-[#25D366] rounded-xl flex items-center justify-center text-lg">💬</div>
-          <div className="flex-1">
-            <div className="text-[#25D366] text-sm font-semibold">Chat with Support</div>
-            <div className="text-gray-400 text-[10px]">WhatsApp us anytime — we reply fast</div>
+      {/* Support + WhatsApp */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Link
+          href="/dashboard/support"
+          className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl flex items-center gap-3 hover:border-gold-500 transition-colors"
+        >
+          <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center text-lg">📧</div>
+          <div>
+            <div className="text-white text-sm font-semibold">Email Support</div>
+            <div className="text-gray-400 text-[10px]">Create & track tickets</div>
           </div>
-          <svg className="w-5 h-5 text-[#25D366]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-        </div>
-      </a>
+        </Link>
+        <a
+          href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '254797100144'}?text=${encodeURIComponent('Hi TaskIt Support, I need help')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-midnight-800 border border-[#25D366]/30 p-4 rounded-2xl flex items-center gap-3 hover:border-[#25D366]/60 transition-colors"
+        >
+          <div className="w-10 h-10 bg-[#25D366]/20 text-[#25D366] rounded-xl flex items-center justify-center text-lg">💬</div>
+          <div>
+            <div className="text-[#25D366] text-sm font-semibold">WhatsApp</div>
+            <div className="text-gray-400 text-[10px]">Chat with us live</div>
+          </div>
+        </a>
+      </div>
 
       {/* Referral Card */}
       <div className="bg-midnight-800 border border-midnight-700 p-5 rounded-2xl relative overflow-hidden">

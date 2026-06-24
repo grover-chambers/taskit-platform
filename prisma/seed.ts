@@ -5,6 +5,9 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('🔥 Purging old data...');
+  await prisma.supportMessage.deleteMany();
+  await prisma.supportTicket.deleteMany();
+  await prisma.riderDocument.deleteMany();
   await prisma.riderLocation.deleteMany();
   await prisma.enterpriseDelivery.deleteMany();
   await prisma.enterpriseClient.deleteMany();
@@ -102,6 +105,24 @@ async function main() {
       id: riderUser2.id, licenseNumber: 'LIC-002', plateNumber: 'KCA 223B',
       kycStatus: 'VERIFIED', rating: 4.8, isOnline: true, totalTrips: 98, todayEarnings: 1200,
     },
+  });
+
+  const futureDate = (days: number) => new Date(Date.now() + days * 86400000);
+  const pastDate = (days: number) => new Date(Date.now() - days * 86400000);
+
+  await prisma.riderDocument.createMany({
+    data: [
+      { riderId: riderUser.id, docType: 'ID_FRONT', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=ID+Front', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(7), documentNumber: '29483716', createdAt: pastDate(8) },
+      { riderId: riderUser.id, docType: 'ID_BACK', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=ID+Back', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(7), documentNumber: '29483716', createdAt: pastDate(8) },
+      { riderId: riderUser.id, docType: 'DRIVING_LICENSE', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=Driving+License', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(7), documentNumber: 'DL-8472-PW', expiryDate: futureDate(730), createdAt: pastDate(8) },
+      { riderId: riderUser.id, docType: 'GOOD_CONDUCT', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=Good+Conduct', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(7), documentNumber: 'GC-2024-91827', expiryDate: futureDate(365), createdAt: pastDate(8) },
+      { riderId: riderUser.id, docType: 'PASSPORT_PHOTO', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=Passport+Photo', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(7), createdAt: pastDate(8) },
+      { riderId: riderUser2.id, docType: 'ID_FRONT', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=ID+Front', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(5), documentNumber: '31726584', createdAt: pastDate(6) },
+      { riderId: riderUser2.id, docType: 'ID_BACK', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=ID+Back', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(5), documentNumber: '31726584', createdAt: pastDate(6) },
+      { riderId: riderUser2.id, docType: 'DRIVING_LICENSE', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=Driving+License', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(5), documentNumber: 'DL-5291-KM', expiryDate: futureDate(540), createdAt: pastDate(6) },
+      { riderId: riderUser2.id, docType: 'GOOD_CONDUCT', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=Good+Conduct', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(5), documentNumber: 'GC-2024-43281', expiryDate: futureDate(200), createdAt: pastDate(6) },
+      { riderId: riderUser2.id, docType: 'PASSPORT_PHOTO', url: 'https://placehold.co/400x300/1a1a2e/d4a017?text=Passport+Photo', status: 'APPROVED', reviewedBy: admin.id, reviewedAt: pastDate(5), createdAt: pastDate(6) },
+    ],
   });
 
   // Orders in various states for the full lifecycle demo

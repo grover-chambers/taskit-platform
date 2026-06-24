@@ -17,13 +17,19 @@ const statusStyles: Record<string, string> = {
   ACCEPTED: 'bg-midnight-700 text-gray-400',
 };
 
+const PAYOUT_COLORS: Record<string, string> = {
+  UNPAID: 'text-yellow-400',
+  PAID: 'text-green-400',
+};
+
 type Tab = 'earnings' | 'history';
 
 export default function RiderWallet() {
   const [tab, setTab] = useState<Tab>('earnings');
   const [earnings, setEarnings] = useState<any[]>([]);
   const [todayEarnings, setTodayEarnings] = useState(0);
-  const [weekEarnings, setWeekEarnings] = useState(0);
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [pendingBalance, setPendingBalance] = useState(0);
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,12 +44,8 @@ export default function RiderWallet() {
       const today = statsData.riderDetail?.todayEarnings || 0;
       setTodayEarnings(today);
       setTotalEarnings(earningsData.totalEarnings || 0);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekTotal = allEarnings
-        .filter((e: any) => new Date(e.createdAt) >= weekAgo)
-        .reduce((sum: number, e: any) => sum + e.amount, 0);
-      setWeekEarnings(weekTotal);
+      setAvailableBalance(earningsData.availableBalance || 0);
+      setPendingBalance(earningsData.pendingBalance || 0);
       setOrders(statsData.orders || []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -58,18 +60,25 @@ export default function RiderWallet() {
       <h1 className="text-2xl font-serif font-bold text-white mb-4">Wallet</h1>
 
       <div className="bg-midnight-800 border border-midnight-700 p-6 rounded-2xl shadow-soft-dark mb-4">
-        <p className="text-gray-400 text-xs uppercase tracking-wider">This Week</p>
-        <p className="text-4xl font-serif font-bold text-gold-500 mt-2">KSh {weekEarnings.toLocaleString()}</p>
+        <p className="text-gray-400 text-xs uppercase tracking-wider">Available Balance</p>
+        <p className="text-4xl font-serif font-bold text-gold-500 mt-2">KSh {availableBalance.toLocaleString()}</p>
+        {pendingBalance > 0 && (
+          <p className="text-yellow-400/80 text-xs mt-2">KSh {pendingBalance.toLocaleString()} pending payout</p>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <div className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl shadow-soft-dark text-center">
-          <p className="text-gold-500 font-bold text-xl">KSh {todayEarnings.toLocaleString()}</p>
-          <p className="text-gray-500 text-[10px] mt-1">Today</p>
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="bg-midnight-800 border border-midnight-700 p-3 rounded-2xl shadow-soft-dark text-center">
+          <p className="text-gold-500 font-bold text-lg">KSh {todayEarnings.toLocaleString()}</p>
+          <p className="text-gray-500 text-[9px] mt-0.5">Today</p>
         </div>
-        <div className="bg-midnight-800 border border-midnight-700 p-4 rounded-2xl shadow-soft-dark text-center">
-          <p className="text-white font-bold text-xl">KSh {totalEarnings.toLocaleString()}</p>
-          <p className="text-gray-500 text-[10px] mt-1">All Time</p>
+        <div className="bg-midnight-800 border border-midnight-700 p-3 rounded-2xl shadow-soft-dark text-center">
+          <p className="text-yellow-400 font-bold text-lg">KSh {pendingBalance.toLocaleString()}</p>
+          <p className="text-gray-500 text-[9px] mt-0.5">Pending</p>
+        </div>
+        <div className="bg-midnight-800 border border-midnight-700 p-3 rounded-2xl shadow-soft-dark text-center">
+          <p className="text-white font-bold text-lg">KSh {totalEarnings.toLocaleString()}</p>
+          <p className="text-gray-500 text-[9px] mt-0.5">All Time</p>
         </div>
       </div>
 
@@ -101,17 +110,22 @@ export default function RiderWallet() {
           )}
           {earnings.map((e: any) => (
             <div key={e.id} className="bg-midnight-800 p-4 rounded-2xl border border-midnight-700 flex justify-between items-center">
-              <div>
-                <p className="text-white font-semibold text-sm">
+              <div className="min-w-0 flex-1">
+                <p className="text-white font-semibold text-sm truncate">
                   {e.order?.errandDescription
                     ? e.order.errandDescription.length > 30
                       ? e.order.errandDescription.slice(0, 30) + '...'
                       : e.order.errandDescription
                     : 'Delivery'}
                 </p>
-                <p className="text-gray-500 text-xs">{new Date(e.createdAt).toLocaleDateString('en-KE', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-gray-500 text-xs">{new Date(e.createdAt).toLocaleDateString('en-KE', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+                  <span className={`text-[9px] font-bold ${PAYOUT_COLORS[e.payoutStatus] || 'text-gray-500'}`}>
+                    {e.payoutStatus === 'PAID' ? '✓ Paid' : '⏳ Pending'}
+                  </span>
+                </div>
               </div>
-              <p className="text-gold-500 font-bold">+KSh {e.amount}</p>
+              <p className="text-gold-500 font-bold flex-shrink-0 ml-3">+KSh {e.amount}</p>
             </div>
           ))}
         </div>

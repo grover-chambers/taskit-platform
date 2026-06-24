@@ -12,14 +12,23 @@ export async function GET() {
   try {
     const earnings = await prisma.riderEarning.findMany({
       where: { riderId: session.user.id },
-      include: { order: { select: { id: true, errandDescription: true, createdAt: true } } },
+      include: {
+        order: { select: { id: true, errandDescription: true, createdAt: true } },
+        payout: { select: { id: true, status: true, paidAt: true, reference: true } },
+      },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
 
     const totalEarnings = earnings.reduce((sum, e) => sum + e.amount, 0);
+    const availableBalance = earnings
+      .filter(e => e.payoutStatus === 'PAID')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const pendingBalance = earnings
+      .filter(e => e.payoutStatus === 'UNPAID')
+      .reduce((sum, e) => sum + e.amount, 0);
 
-    return NextResponse.json({ earnings, totalEarnings });
+    return NextResponse.json({ earnings, totalEarnings, availableBalance, pendingBalance });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

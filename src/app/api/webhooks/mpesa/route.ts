@@ -18,7 +18,7 @@ export async function POST(request: Request) {
         where: { id: orderId },
         data: {
           paymentStatus: 'PAID',
-          status: 'RIDER_ASSIGNMENT',
+          status: 'ACCEPTED',
           mpesaReceipt: mpesaTransactionCode,
         },
       });

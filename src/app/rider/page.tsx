@@ -31,6 +31,12 @@ export default function RiderDashboard() {
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '']);
   const [otpError, setOtpError] = useState('');
+  const [otpLocked, setOtpLocked] = useState(false);
+  const [otpLockMinutes, setOtpLockMinutes] = useState(0);
+  const [otpExpired, setOtpExpired] = useState(false);
+  const [otpAttemptsLeft, setOtpAttemptsLeft] = useState(3);
+  const [otpRegenerated, setOtpRegenerated] = useState(false);
+  const [acceptingOrderId, setAcceptingOrderId] = useState<string | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const pingRef = useRef<NodeJS.Timeout | null>(null);
   const watchRef = useRef<number | null>(null);
@@ -124,18 +130,63 @@ export default function RiderDashboard() {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        await fetchData();
-        setShowOtpModal(false);
-        setOtpDigits(['', '', '', '']);
-        setOtpError('');
+        const data = await res.json();
+        if (data.otpRegenerated) {
+          setOtpError('');
+          setOtpRegenerated(true);
+          setOtpDigits(['', '', '', '']);
+          setOtpAttemptsLeft(3);
+          setOtpLocked(false);
+          setOtpExpired(false);
+        } else {
+          await fetchData();
+          setShowOtpModal(false);
+          setOtpDigits(['', '', '', '']);
+          setOtpError('');
+          setOtpLocked(false);
+          setOtpExpired(false);
+          setOtpAttemptsLeft(3);
+        }
       } else {
         const data = await res.json();
-        if (data.error === 'Invalid OTP') {
-          setOtpError('Wrong OTP. Please check with the customer.');
+        if (data.otpLocked) {
+          setOtpLocked(true);
+          setOtpLockMinutes(data.error?.match(/(\d+)\s*min/)?.[1] ? parseInt(data.error.match(/(\d+)\s*min/)[1]) : 5);
+          setOtpError(data.error);
+        } else if (data.otpExpired) {
+          setOtpExpired(true);
+          setOtpError(data.error);
+        } else if (data.error?.includes('Invalid OTP') || data.error?.includes('attempt')) {
+          const match = data.error.match(/(\d+)\s*attempt/);
+          const left = match ? parseInt(match[1]) : 0;
+          setOtpAttemptsLeft(left);
+          setOtpError(data.error);
+        } else {
+          setOtpError(data.error || 'OTP verification failed');
         }
       }
     } catch {}
     setUpdating(false);
+  };
+
+  const acceptJob = async (orderId: string) => {
+    setAcceptingOrderId(orderId);
+    try {
+      const res = await fetch('/api/rider/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to accept job');
+      }
+    } catch {
+      alert('Network error. Please try again.');
+    }
+    setAcceptingOrderId(null);
   };
 
   const handleOtpSubmit = () => {
@@ -370,13 +421,20 @@ export default function RiderDashboard() {
               <div key={order.id} className="bg-midnight-800 border border-midnight-700 rounded-2xl overflow-hidden">
                 <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2.5 flex justify-between items-center">
                   <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Errand</span>
-                  <span className="font-bold text-base text-orange-400">KSh {order.totalAmount || order.zone?.price || '—'}</span>
+                  <span className="font-bold text-base text-orange-400">KSh {order.totalAmount || order.zone?.price || '\u2014'}</span>
                 </div>
                 <div className="px-4 py-3">
                   <p className="text-white text-sm">{order.errandDescription}</p>
                   {order.zone && (
                     <p className="text-gray-500 text-[9.5px] mt-1">{order.zone.name}</p>
                   )}
+                  <button
+                    onClick={() => acceptJob(order.id)}
+                    disabled={acceptingOrderId === order.id}
+                    className="mt-3 w-full bg-gold-500 text-midnight-950 py-2.5 rounded-xl font-bold text-sm hover:bg-gold-400 transition-colors active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {acceptingOrderId === order.id ? 'Accepting...' : 'Accept Job'}
+                  </button>
                 </div>
               </div>
             ))}
@@ -415,45 +473,69 @@ export default function RiderDashboard() {
       )}
 
       {showOtpModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowOtpModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => { setShowOtpModal(false); setOtpDigits(['', '', '', '']); setOtpError(''); setOtpLocked(false); setOtpExpired(false); setOtpRegenerated(false); }}>
           <div className="bg-midnight-900 border-t border-midnight-700 rounded-t-2xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <h3 className="text-white font-bold text-lg mb-1">Enter Delivery OTP</h3>
-            <p className="text-gray-400 text-sm mb-5">Ask the customer for the 4-digit OTP sent to their phone</p>
+            <p className="text-gray-400 text-sm mb-4">Ask the customer for the 4-digit OTP</p>
 
-            {otpError && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
-                <p className="text-red-400 text-sm font-semibold">{otpError}</p>
+            {otpRegenerated && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-4">
+                <p className="text-green-400 text-sm font-bold">New OTP sent to customer!</p>
+                <p className="text-green-300/60 text-xs mt-1">The previous OTP expired. Ask the customer for the new code.</p>
               </div>
             )}
 
-            <div className="flex justify-center gap-3 mb-6">
-              {otpDigits.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={el => { otpRefs.current[i] = el; }}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={e => setOtpDigit(i, e.target.value.replace(/\D/g, ''))}
-                  onKeyDown={e => handleOtpKeyDown(i, e)}
-                  className="w-14 h-16 bg-midnight-800 border-2 border-midnight-700 rounded-xl text-center text-white text-2xl font-bold outline-none focus:border-gold-500 transition-colors"
-                />
-              ))}
-            </div>
+            {!otpLocked && !otpExpired && !otpRegenerated && otpAttemptsLeft < 3 && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-2.5 mb-4">
+                <p className="text-yellow-400 text-xs font-bold">{otpAttemptsLeft} attempt{otpAttemptsLeft !== 1 ? 's' : ''} remaining</p>
+              </div>
+            )}
 
+            {otpError && (
+              <div className={`border rounded-xl p-3 mb-4 ${otpLocked ? 'bg-orange-500/10 border-orange-500/30' : otpExpired ? 'bg-purple-500/10 border-purple-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                <p className={`text-sm font-semibold ${otpLocked ? 'text-orange-400' : otpExpired ? 'text-purple-400' : 'text-red-400'}`}>{otpError}</p>
+                {otpLocked && !otpExpired && <p className="text-orange-300/60 text-xs mt-1">Wait for the lockout to expire, then ask the customer for a new OTP.</p>}
+              </div>
+            )}
+
+            {!otpLocked && !otpExpired && (
+              <>
+                <div className="flex justify-center gap-3 mb-6">
+                  {otpDigits.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={el => { otpRefs.current[i] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => { setOtpDigit(i, e.target.value.replace(/\D/g, '')); if (otpRegenerated) setOtpRegenerated(false); }}
+                      onKeyDown={e => handleOtpKeyDown(i, e)}
+                      className="w-14 h-16 bg-midnight-800 border-2 border-midnight-700 rounded-xl text-center text-white text-2xl font-bold outline-none focus:border-gold-500 transition-colors"
+                    />
+                  ))}
+                </div>
+
+                <div className="flex justify-center gap-1 mb-6">
+                  {[1, 2, 3].map((a, i) => (
+                    <div key={i} className={`w-2 h-2 rounded-full ${i < otpAttemptsLeft ? 'bg-gold-500' : 'bg-midnight-700'}`} />
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleOtpSubmit}
+                  disabled={updating || otpDigits.join('').length !== 4}
+                  className="w-full bg-gold-500 text-midnight-950 py-3 rounded-xl font-bold text-sm disabled:opacity-50 transition-colors mb-2"
+                >
+                  {updating ? 'Verifying...' : 'Confirm Delivery'}
+                </button>
+              </>
+            )}
             <button
-              onClick={handleOtpSubmit}
-              disabled={updating || otpDigits.join('').length !== 4}
-              className="w-full bg-gold-500 text-midnight-950 py-3 rounded-xl font-bold text-sm disabled:opacity-50 transition-colors mb-2"
-            >
-              {updating ? 'Verifying...' : 'Confirm Delivery'}
-            </button>
-            <button
-              onClick={() => { setShowOtpModal(false); setOtpDigits(['', '', '', '']); setOtpError(''); }}
+              onClick={() => { setShowOtpModal(false); setOtpDigits(['', '', '', '']); setOtpError(''); setOtpLocked(false); setOtpExpired(false); setOtpRegenerated(false); }}
               className="w-full bg-midnight-800 text-gray-300 py-3 rounded-xl font-bold text-sm transition-colors"
             >
-              Cancel
+              {otpLocked || otpExpired ? 'Close' : 'Cancel'}
             </button>
           </div>
         </div>

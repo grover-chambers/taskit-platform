@@ -61,7 +61,7 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { status, riderId, paymentStatus, mpesaTransactionCode } = body;
+    const { status, riderId, paymentStatus, mpesaTransactionCode, deliveryOtp } = body;
 
     if (riderId) {
       return NextResponse.json(
@@ -82,6 +82,47 @@ export async function PATCH(
       );
     }
 
+    if (status === 'DELIVERED' && currentOrder.deliveryOtp) {
+      if (!deliveryOtp) {
+        return NextResponse.json({ error: 'Delivery OTP required' }, { status: 400 });
+      }
+
+      if (currentOrder.otpLockedUntil && new Date() < new Date(currentOrder.otpLockedUntil)) {
+        const remaining = Math.ceil((new Date(currentOrder.otpLockedUntil).getTime() - Date.now()) / 60000);
+        return NextResponse.json({ error: `OTP locked. Try again in ${remaining} min.`, otpLocked: true }, { status: 429 });
+      }
+
+      const isOtpExpired = currentOrder.otpGeneratedAt && (Date.now() - new Date(currentOrder.otpGeneratedAt).getTime()) > 30 * 60 * 1000;
+      if (isOtpExpired && !currentOrder.otpLockedUntil) {
+        const newOtp = String(Math.floor(1000 + Math.random() * 9000));
+        await prisma.order.update({
+          where: { id: params.id },
+          data: { deliveryOtp: newOtp, otpGeneratedAt: new Date(), otpAttempts: 0, otpLockedUntil: null },
+        });
+        const customer = await prisma.user.findUnique({ where: { id: currentOrder.customerId } });
+        if (customer) {
+          await prisma.notification.create({
+            data: { userId: customer.id, title: 'New Delivery OTP', body: `Your previous OTP expired. Your new delivery OTP is ${newOtp}. Share this with your rider.`, type: 'ORDER' },
+          });
+        }
+        return NextResponse.json({ error: 'OTP expired. A new OTP has been sent to the customer.', otpRegenerated: true }, { status: 200 });
+      }
+
+      if (deliveryOtp !== currentOrder.deliveryOtp) {
+        const newAttempts = (currentOrder.otpAttempts || 0) + 1;
+        const lockUntil = newAttempts >= 3 ? new Date(Date.now() + 5 * 60 * 1000) : null;
+        await prisma.order.update({
+          where: { id: params.id },
+          data: { otpAttempts: newAttempts, ...(lockUntil ? { otpLockedUntil: lockUntil } : {}) },
+        });
+        if (lockUntil) {
+          return NextResponse.json({ error: 'Wrong OTP 3 times. Locked for 5 min.', otpLocked: true }, { status: 429 });
+        }
+        const left = 3 - newAttempts;
+        return NextResponse.json({ error: `Invalid OTP. ${left} attempt${left !== 1 ? 's' : ''} remaining.` }, { status: 403 });
+      }
+    }
+
     const updateData: any = {};
     if (status) updateData.status = status;
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
@@ -92,7 +133,7 @@ export async function PATCH(
         const otp = String(Math.floor(1000 + Math.random() * 9000));
         await tx.order.update({
           where: { id: params.id },
-          data: { deliveryOtp: otp },
+          data: { deliveryOtp: otp, otpGeneratedAt: new Date(), otpAttempts: 0, otpLockedUntil: null },
         });
         const customer = await tx.user.findUnique({ where: { id: currentOrder.customerId } });
         if (customer) {
@@ -123,15 +164,47 @@ export async function PATCH(
       }
 
       if (status === 'DELIVERED' && order.riderId) {
-        if (currentOrder.deliveryOtp && body.deliveryOtp !== currentOrder.deliveryOtp) {
-          throw new Error('Invalid OTP');
-        }
         await tx.riderDetail.update({
           where: { id: order.riderId },
           data: {
             currentOrderId: null,
             totalTrips: { increment: 1 },
           },
+        });
+
+        const existingEarning = await tx.riderEarning.findUnique({ where: { orderId: order.id } });
+        if (!existingEarning) {
+          const zone = await tx.zone.findUnique({ where: { id: order.zoneId } });
+          const earning = zone ? Math.round(zone.price * 0.7) : 100;
+
+          const payout = await tx.payout.create({
+            data: {
+              riderId: order.riderId,
+              amount: earning,
+              status: 'PENDING',
+              method: 'MPESA',
+            },
+          });
+
+          await tx.riderEarning.create({
+            data: {
+              riderId: order.riderId,
+              orderId: order.id,
+              amount: earning,
+              payoutStatus: 'UNPAID',
+              payoutId: payout.id,
+            },
+          });
+
+          await tx.riderDetail.update({
+            where: { id: order.riderId },
+            data: { todayEarnings: { increment: earning } },
+          });
+        }
+
+        await tx.order.update({
+          where: { id: params.id },
+          data: { otpAttempts: 0, otpLockedUntil: null },
         });
       }
 

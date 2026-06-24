@@ -21,6 +21,13 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [order, setOrder] = useState<any>(null);
   const [riderLocation, setRiderLocation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [simulatingPayment, setSimulatingPayment] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -66,6 +73,63 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       return () => clearInterval(interval);
     }
   }, [order, fetchRiderLocation]);
+
+  const cancelOrder = async () => {
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/orders/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED' }),
+      });
+      if (res.ok) {
+        await fetchOrder();
+        setShowCancelConfirm(false);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to cancel order');
+      }
+    } catch {}
+    setCancelling(false);
+  };
+
+  const submitRating = async () => {
+    if (rating < 1 || !order?.riderId) return;
+    setSubmittingRating(true);
+    try {
+      await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          targetId: order.riderId,
+          rating,
+          targetRole: 'RIDER',
+        }),
+      });
+      setRatingSubmitted(true);
+    } catch {}
+    setSubmittingRating(false);
+  };
+
+  const simulatePayment = async () => {
+    setSimulatingPayment(true);
+    try {
+      const code = 'DEMO' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      await fetch('/api/payments/mpesa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, mpesaTransactionCode: code }),
+      });
+      await fetch('/api/webhooks/mpesa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, mpesaTransactionCode: code, confirmed: true }),
+      });
+      await fetchOrder();
+    } catch {}
+    setSimulatingPayment(false);
+  };
 
   if (loading) {
     return (
@@ -251,6 +315,94 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             <p className="text-gray-400 text-[9px] mt-1">
               {order.status === 'IN_TRANSIT' ? 'Share this code with your rider to confirm delivery' : 'OTP used to confirm delivery'}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Order */}
+      {!isDone && !['PICKED_UP', 'IN_TRANSIT'].includes(order.status) && (
+        <div className="px-6 mb-4">
+          <button
+            onClick={() => setShowCancelConfirm(true)}
+            className="w-full bg-red-500/10 border border-red-500/25 text-red-400 py-2.5 rounded-xl text-xs font-bold hover:bg-red-500/20 transition-colors"
+          >
+            Cancel Order
+          </button>
+        </div>
+      )}
+
+      {order.paymentStatus === 'UNPAID' && !isDone && (
+        <div className="px-6 mb-4">
+          <div className="bg-green-500/10 border border-green-500/25 rounded-xl p-4">
+            <p className="text-green-400 text-sm font-bold mb-1">Complete Payment</p>
+            <p className="text-gray-400 text-[10px] mb-3">Pay KSh {order.totalAmount} via M-Pesa to Till 123456, then enter your code below.</p>
+            <button
+              onClick={simulatePayment}
+              disabled={simulatingPayment}
+              className="w-full bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-green-500 disabled:opacity-50 transition-colors"
+            >
+              {simulatingPayment ? 'Processing...' : 'Simulate M-Pesa Payment (Demo)'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setShowCancelConfirm(false)}>
+          <div className="bg-midnight-900 border border-midnight-700 rounded-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h2 className="text-white font-bold text-base mb-1">Cancel Order?</h2>
+            <p className="text-gray-400 text-sm mb-5">This action cannot be undone. The rider will be freed from this job.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelConfirm(false)}
+                className="flex-1 bg-midnight-800 text-gray-300 py-2.5 rounded-xl text-sm font-bold transition-colors"
+              >
+                Keep Order
+              </button>
+              <button
+                onClick={cancelOrder}
+                disabled={cancelling}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-red-500 disabled:opacity-50 transition-colors"
+              >
+                {cancelling ? 'Cancelling...' : 'Confirm Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rate Rider */}
+      {order.status === 'DELIVERED' && order.riderId && !ratingSubmitted && (
+        <div className="px-6 mb-4">
+          <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-4">
+            <p className="text-white text-sm font-bold mb-2">Rate your rider</p>
+            <div className="flex gap-1 mb-3 justify-center">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setRatingHover(star)}
+                  onMouseLeave={() => setRatingHover(0)}
+                  className="text-2xl transition-colors"
+                >
+                  <span className={star <= (ratingHover || rating) ? 'text-gold-500' : 'text-midnight-600'}>★</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={submitRating}
+              disabled={rating < 1 || submittingRating}
+              className="w-full bg-gold-500 text-midnight-950 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 transition-colors"
+            >
+              {submittingRating ? 'Submitting...' : 'Submit Rating'}
+            </button>
+          </div>
+        </div>
+      )}
+      {ratingSubmitted && (
+        <div className="px-6 mb-4">
+          <div className="bg-green-500/10 border border-green-500/25 rounded-xl p-3 text-center">
+            <p className="text-green-400 text-sm font-bold">Thanks for rating!</p>
           </div>
         </div>
       )}

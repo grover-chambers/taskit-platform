@@ -97,6 +97,7 @@ async function main() {
     data: {
       id: riderUser.id, licenseNumber: 'LIC-001', plateNumber: 'KBZ 441Y',
       kycStatus: 'VERIFIED', rating: 4.9, isOnline: true, totalTrips: 156, todayEarnings: 1840,
+      earningsResetAt: new Date(),
     },
   });
 
@@ -104,6 +105,7 @@ async function main() {
     data: {
       id: riderUser2.id, licenseNumber: 'LIC-002', plateNumber: 'KCA 223B',
       kycStatus: 'VERIFIED', rating: 4.8, isOnline: true, totalTrips: 98, todayEarnings: 1200,
+      earningsResetAt: new Date(),
     },
   });
 
@@ -207,12 +209,26 @@ async function main() {
     ],
   });
 
-  // Rider earnings
+  // Payout + RiderEarning records
+  const payout1 = await prisma.payout.create({
+    data: { id: 'payout-001', riderId: riderUser.id, amount: 105, status: 'PAID', method: 'MPESA', reference: 'RKT4A8B2C3', approvedBy: admin.id, approvedAt: pastDate(3), paidAt: pastDate(2) },
+  });
+  const payout2 = await prisma.payout.create({
+    data: { id: 'payout-002', riderId: riderUser.id, amount: 180, status: 'APPROVED', method: 'MPESA', approvedBy: admin.id, approvedAt: pastDate(1) },
+  });
+  const payout3 = await prisma.payout.create({
+    data: { id: 'payout-003', riderId: riderUser2.id, amount: 210, status: 'PENDING', method: 'MPESA' },
+  });
+
+  // Rider earnings (linked to payouts)
   await prisma.riderEarning.create({
-    data: { riderId: riderUser.id, orderId: order1.id, amount: 180 },
+    data: { riderId: riderUser.id, orderId: order1.id, amount: 180, payoutStatus: 'UNPAID', payoutId: payout2.id },
   });
   await prisma.riderEarning.create({
-    data: { riderId: riderUser.id, orderId: order6.id, amount: 105 },
+    data: { riderId: riderUser.id, orderId: order6.id, amount: 105, payoutStatus: 'PAID', payoutId: payout1.id },
+  });
+  await prisma.riderEarning.create({
+    data: { riderId: riderUser2.id, orderId: order5.id, amount: 210, payoutStatus: 'UNPAID', payoutId: payout3.id },
   });
 
   // Rider locations (simulated Nairobi coordinates)

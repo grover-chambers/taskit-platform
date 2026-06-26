@@ -1,110 +1,145 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 
-interface Order {
-  id: string;
-  time: string;
-  items: string;
-  amount: string;
-  payment: string;
-  accepted: boolean;
+interface Stats {
+  activeOrders: number;
+  completedOrders: number;
+  totalSpent: number;
+  currentMonthSpend: number;
+  rate: number;
+  clientName: string;
+  lastOrder: {
+    id: string;
+    errandDescription: string;
+    status: string;
+    createdAt: string;
+  } | null;
 }
 
-const INITIAL_ORDERS: Order[] = [
-  { id: 'TK-2851', time: '2 min ago', items: 'Pilau × 2, Kachumbari, Soda', amount: 'KSh 680', payment: 'Cash on delivery', accepted: false },
-  { id: 'TK-2849', time: '8 min ago', items: 'Ugali, Sukuma wiki, Beef', amount: 'KSh 520', payment: 'M-Pesa paid ✓', accepted: true },
-  { id: 'TK-2845', time: '15 min ago', items: 'Chai masala × 3, Mandazi × 6', amount: 'KSh 390', payment: 'M-Pesa paid ✓', accepted: true },
-];
+const STATUS_COLORS: Record<string, string> = {
+  RECEIVED: 'bg-gray-500/15 text-gray-400',
+  ACCEPTED: 'bg-blue-500/15 text-blue-400',
+  ASSIGNED: 'bg-purple-500/15 text-purple-400',
+  PICKED_UP: 'bg-teal-500/15 text-teal-400',
+  IN_TRANSIT: 'bg-gold-500/15 text-gold-500',
+  DELIVERED: 'bg-green-500/15 text-green-400',
+  CANCELLED: 'bg-red-500/15 text-red-400',
+};
 
-export default function VendorDashboard() {
-  const [orders, setOrders] = useState(INITIAL_ORDERS);
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
 
-  const handleAccept = (id: string) => {
-    setOrders(orders.map(o => o.id === id ? { ...o, accepted: true } : o));
-  };
+export default function VendorOverview() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleDecline = (id: string) => {
-    setOrders(orders.filter(o => o.id !== id));
-  };
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/vendor/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch {}
+    setLoading(false);
+  }, []);
 
-  const newCount = orders.filter(o => !o.accepted).length;
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-gray-500 text-sm">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-gray-500 text-sm">Unable to load dashboard</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="pb-24">
-      {/* Shop Header */}
-      <div className="bg-gradient-to-br from-midnight-900 to-midnight-950 px-6 pt-8 pb-5 border-b border-midnight-800">
-        <h1 className="text-white font-bold text-lg">Mama Njeri&apos;s Kitchen</h1>
-        <p className="text-gray-500 text-[10px] mt-0.5">Westlands · Food & Grocery</p>
-        <div className="inline-flex items-center gap-1.5 text-[10px] font-bold text-gold-500 bg-gold-500/15 px-2 py-1 rounded-md mt-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-gold-500" style={{animation: 'blink 1.4s ease-in-out infinite'}}></span>
-          Open for orders
-        </div>
+    <div className="px-6 pt-6 pb-24">
+      <div className="mb-5">
+        <h1 className="text-white font-bold text-lg">
+          Welcome back, <span className="text-gold-500">{stats.clientName}</span>
+        </h1>
+        <p className="text-gray-500 text-[10px] mt-0.5 font-semibold uppercase tracking-wider">Enterprise Dashboard</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 border-b border-midnight-800">
+      <div className="grid grid-cols-3 mb-4">
         <div className="py-3 px-4 text-center border-r border-midnight-800">
-          <div className="font-bold text-lg text-gold-500">KSh 8.4K</div>
-          <div className="text-[9px] text-gray-500 mt-0.5">Today</div>
+          <div className="font-bold text-lg text-gold-500">{stats.activeOrders}</div>
+          <div className="text-[9px] text-gray-500 mt-0.5 uppercase tracking-wider">Today's Orders</div>
         </div>
         <div className="py-3 px-4 text-center border-r border-midnight-800">
-          <div className="font-bold text-lg text-white">23</div>
-          <div className="text-[9px] text-gray-500 mt-0.5">Orders</div>
+          <div className="font-bold text-lg text-white">{stats.completedOrders}</div>
+          <div className="text-[9px] text-gray-500 mt-0.5 uppercase tracking-wider">Completed</div>
         </div>
         <div className="py-3 px-4 text-center">
-          <div className="font-bold text-lg text-yellow-500">⭐4.8</div>
-          <div className="text-[9px] text-gray-500 mt-0.5">Rating</div>
+          <div className="font-bold text-lg text-gold-500">KSh {stats.totalSpent.toLocaleString()}</div>
+          <div className="text-[9px] text-gray-500 mt-0.5 uppercase tracking-wider">Total Spent</div>
         </div>
       </div>
 
-      {/* Order Queue */}
-      <div className="px-6 pt-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-white text-sm font-bold">Incoming Orders</h2>
-          {newCount > 0 && (
-            <span className="text-[9.5px] font-bold bg-orange-500/15 text-orange-400 px-2 py-0.5 rounded-full">{newCount} new</span>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          {orders.map((order) => (
-            <div key={order.id} className={`bg-midnight-800 border ${order.accepted ? 'border-midnight-700' : 'border-gold-500/30'} rounded-xl p-4`}>
-              <div className="flex justify-between items-start mb-2">
-                <span className="font-mono text-[10px] text-gray-500">{order.id}</span>
-                <span className="font-mono text-[10px] text-orange-400">{order.time}</span>
-              </div>
-              <div className="text-white text-xs font-semibold mb-1">{order.items}</div>
-              <div className="text-gray-400 text-[10px]">{order.amount} · {order.payment}</div>
-              {!order.accepted && (
-                <div className="flex gap-1.5 mt-3">
-                  <button
-                    onClick={() => handleAccept(order.id)}
-                    className="flex-1 bg-gold-500 text-midnight-950 py-1.5 rounded-lg text-xs font-bold hover:bg-gold-400 transition-colors active:scale-[0.98]"
-                  >
-                    Accept Order
-                  </button>
-                  <button
-                    onClick={() => handleDecline(order.id)}
-                    className="px-3 py-1.5 rounded-lg bg-midnight-700 text-gray-400 text-xs font-semibold border border-midnight-600 hover:text-white transition-colors"
-                  >
-                    Decline
-                  </button>
-                </div>
-              )}
-              {order.accepted && (
-                <div className="mt-3">
-                  <span className="inline-block bg-blue-500/15 text-blue-400 text-[10px] font-bold px-2 py-1 rounded-md">Preparing</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="bg-midnight-800 border border-gold-500/30 rounded-xl p-4 mb-4">
+        <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-1">Current Rate</p>
+        <p className="text-gold-500 font-bold text-base">KSh {stats.rate} <span className="text-gray-400 text-sm font-normal">per delivery</span></p>
       </div>
 
-      <style>{`
-        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-      `}</style>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Link
+          href="/vendor/orders/new"
+          className="bg-gold-500 text-midnight-950 py-3 rounded-xl font-bold text-sm text-center hover:bg-gold-400 transition-colors active:scale-[0.98]"
+        >
+          New Order
+        </Link>
+        <Link
+          href="/vendor/orders"
+          className="bg-midnight-800 border border-midnight-700 text-white py-3 rounded-xl font-bold text-sm text-center hover:border-midnight-600 transition-colors"
+        >
+          View All Orders
+        </Link>
+      </div>
+
+      {stats.lastOrder && (
+        <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-4 mb-4">
+          <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-2">Last Order</p>
+          <p className="text-white text-sm font-semibold mb-1">
+            {stats.lastOrder.errandDescription.length > 50
+              ? stats.lastOrder.errandDescription.slice(0, 50) + '...'
+              : stats.lastOrder.errandDescription}
+          </p>
+          <div className="flex items-center justify-between">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${STATUS_COLORS[stats.lastOrder.status] || 'bg-gray-500/15 text-gray-400'}`}>
+              {stats.lastOrder.status.replace('_', ' ')}
+            </span>
+            <span className="text-[10px] text-gray-500">{timeAgo(stats.lastOrder.createdAt)}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-4">
+        <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-1">Monthly Spend</p>
+        <p className="text-gold-500 font-bold text-base">KSh {stats.currentMonthSpend.toLocaleString()} <span className="text-gray-400 text-sm font-normal">this month</span></p>
+      </div>
     </div>
   );
 }

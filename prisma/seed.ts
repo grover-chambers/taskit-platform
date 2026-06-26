@@ -41,6 +41,10 @@ async function main() {
     data: { id: 'vendor-001', email: 'mama.njeri@taskit.co.ke', password: hash('vendor123'), name: 'Mama Njeri', phone: '+254700000002', role: 'VENDOR' },
   });
 
+  const mtaagoUser = await prisma.user.create({
+    data: { id: 'vendor-002', email: 'mtaago@taskit.co.ke', password: hash('mtaago123'), name: 'Mtaago Dispatch', phone: '+254700000010', role: 'VENDOR' },
+  });
+
   const riderUser = await prisma.user.create({
     data: { id: 'rider-001', email: 'peter.m@taskit.co.ke', password: hash('rider123'), name: 'Peter Mwangi', phone: '+254700000003', role: 'RIDER' },
   });
@@ -255,6 +259,9 @@ async function main() {
       { userId: customerUser.id, title: 'Rider Assigned', body: 'Grace K. will deliver your parcel to Parklands.', type: 'ORDER' },
       { userId: riderUser.id, title: 'New Job Assigned', body: 'Errand — KSh 180 — Tuskys Supermarket, Westlands', type: 'ORDER' },
       { userId: vendorUser.id, title: 'New Order Received', body: '#ORDER-002 — Pilau x2, Kachumbari, Soda — KSh 680', type: 'ORDER' },
+      { userId: mtaagoUser.id, title: 'New Enterprise Order', body: 'Office supplies order auto-accepted — KSh 120', type: 'ORDER' },
+      { userId: mtaagoUser.id, title: 'Delivery In Transit', body: '50kg Unga delivery to Kangemi — OTP: 5531', type: 'ORDER' },
+      { userId: mtaagoUser.id, title: 'Invoice Generated', body: 'KSh 240 invoice for 2 deliveries this month', type: 'PAYMENT' },
       { userId: admin.id, title: 'Dispatch Required', body: '2 paid orders waiting for rider assignment', type: 'SYSTEM' },
     ],
   });
@@ -262,8 +269,70 @@ async function main() {
   const kanini = await prisma.enterpriseClient.create({
     data: {
       id: 'enterprise-001', name: 'Kanini Haraka Enterprises', apiKey: 'kan_os_live_4a7b9c2d1e3f',
-      contact: '+254700000010', rate: 120, active: true, ownerId: admin.id,
+      contact: '+254700000010', rate: 120, active: true, ownerId: mtaagoUser.id,
     },
+  });
+
+  const entOrder1 = await prisma.order.create({
+    data: {
+      id: 'ent-order-001', errandDescription: '50kg Unga, 20L Cooking Oil — Kangemi Market',
+      status: 'IN_TRANSIT', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 120,
+      pickupLocation: 'Kanini Haraka Warehouse, Industrial Area', dropoffLocation: 'Mama Mboga, Kangemi Market',
+      contactPhone: '+254700000010', zoneId: westlands.id, vendorId: mtaagoUser.id,
+      enterpriseClientId: kanini.id, customerId: mtaagoUser.id, riderId: riderUser.id, assignedAt: new Date(),
+      deliveryOtp: '5531',
+    },
+  });
+
+  const entOrder2 = await prisma.order.create({
+    data: {
+      id: 'ent-order-002', errandDescription: 'Office supplies — A4 Paper x5, Toner Cartridge',
+      status: 'ACCEPTED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 120,
+      pickupLocation: 'Kanini Haraka Warehouse, Industrial Area', dropoffLocation: 'I&M Tower 14F',
+      contactPhone: '+254700000010', zoneId: cbd.id, vendorId: mtaagoUser.id,
+      enterpriseClientId: kanini.id, customerId: mtaagoUser.id,
+    },
+  });
+
+  const entOrder3 = await prisma.order.create({
+    data: {
+      id: 'ent-order-003', errandDescription: 'Restaurant supplies — Chef knives set, Cutting boards',
+      status: 'DELIVERED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 120,
+      pickupLocation: 'Kanini Haraka Warehouse', dropoffLocation: 'The Carnivore, Langata',
+      contactPhone: '+254700000010', zoneId: cbd.id, vendorId: mtaagoUser.id,
+      enterpriseClientId: kanini.id, customerId: mtaagoUser.id, riderId: riderUser.id, assignedAt: pastDate(2),
+      createdAt: pastDate(2),
+    },
+  });
+
+  const entOrder4 = await prisma.order.create({
+    data: {
+      id: 'ent-order-004', errandDescription: 'Medical supplies — Gloves x10 boxes, Sanitizer',
+      status: 'DELIVERED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 120,
+      pickupLocation: 'Kanini Haraka Warehouse', dropoffLocation: 'Kenyatta Hospital Pharmacy',
+      contactPhone: '+254700000010', zoneId: cbd.id, vendorId: mtaagoUser.id,
+      enterpriseClientId: kanini.id, customerId: mtaagoUser.id, riderId: riderUser2.id, assignedAt: pastDate(8),
+      createdAt: pastDate(8),
+    },
+  });
+
+  await prisma.orderStatus.createMany({
+    data: [
+      { orderId: entOrder1.id, status: 'RECEIVED', note: 'Enterprise order placed' },
+      { orderId: entOrder1.id, status: 'ACCEPTED', note: 'Enterprise order — auto-accepted' },
+      { orderId: entOrder1.id, status: 'ASSIGNED', note: 'Rider Peter M. assigned' },
+      { orderId: entOrder1.id, status: 'PICKED_UP', note: 'Picked up from warehouse' },
+      { orderId: entOrder1.id, status: 'IN_TRANSIT', note: 'En route to Kangemi' },
+      { orderId: entOrder2.id, status: 'RECEIVED', note: 'Enterprise order placed' },
+      { orderId: entOrder2.id, status: 'ACCEPTED', note: 'Enterprise order — auto-accepted' },
+      { orderId: entOrder3.id, status: 'RECEIVED', note: 'Enterprise order placed' },
+      { orderId: entOrder3.id, status: 'ACCEPTED', note: 'Enterprise order — auto-accepted' },
+      { orderId: entOrder3.id, status: 'ASSIGNED', note: 'Rider Peter M. assigned' },
+      { orderId: entOrder3.id, status: 'DELIVERED', note: 'Delivered to The Carnivore' },
+      { orderId: entOrder4.id, status: 'RECEIVED', note: 'Enterprise order placed' },
+      { orderId: entOrder4.id, status: 'ACCEPTED', note: 'Enterprise order — auto-accepted' },
+      { orderId: entOrder4.id, status: 'DELIVERED', note: 'Delivered to Kenyatta Hospital' },
+    ],
   });
 
   await prisma.enterpriseDelivery.create({
@@ -271,7 +340,7 @@ async function main() {
       id: 'laas-del-001', reference: 'KHE-ORD-8921',
       pickup: 'Kanini Haraka Warehouse, Industrial Area', dropoff: 'Mama Mboga, Kangemi Market',
       description: '50kg Unga, 20L Cooking Oil, 10kg Sugar',
-      status: 'ASSIGNED', slaMinutes: 90, clientId: kanini.id, riderId: riderUser2.id,
+      status: 'ASSIGNED', slaMinutes: 90, clientId: kanini.id, riderId: riderUser2.id, orderId: entOrder1.id,
     },
   });
 
@@ -282,6 +351,7 @@ async function main() {
   console.log('   Rider: peter.m@taskit.co.ke / rider123');
   console.log('   Rider 2: grace.k@taskit.co.ke / rider123');
   console.log('   Vendor: mama.njeri@taskit.co.ke / vendor123');
+  console.log('   Mtaago: mtaago@taskit.co.ke / mtaago123');
 }
 
 main()

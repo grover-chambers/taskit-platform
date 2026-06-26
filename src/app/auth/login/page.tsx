@@ -8,6 +8,8 @@ const DEMO_ACCOUNTS = [
   { role: 'Admin', email: 'admin@taskit.co.ke', password: 'MunyagaMartin.12', dashboard: '/admin', color: 'from-red-600 to-red-700' },
   { role: 'Customer', email: 'wanjiru@email.com', password: 'customer123', dashboard: '/dashboard', color: 'from-brand-500 to-yellow-600' },
   { role: 'Rider', email: 'peter.m@taskit.co.ke', password: 'rider123', dashboard: '/rider', color: 'from-blue-600 to-blue-700' },
+  { role: 'Vendor', email: 'mama.njeri@taskit.co.ke', password: 'vendor123', dashboard: '/vendor', color: 'from-purple-600 to-purple-700' },
+  { role: 'Mtaago', email: 'mtaago@taskit.co.ke', password: 'mtaago123', dashboard: '/mtaago', color: 'from-haraka-600 to-emerald-700' },
 ];
 
 export default function LoginPage() {
@@ -44,7 +46,7 @@ function LoginContent() {
   const ROLE_REDIRECTS: Record<string, string> = {
     ADMIN: '/admin',
     RIDER: '/rider',
-    VENDOR: '/vendor',
+    VENDOR: '/mtaago',
     CUSTOMER: '/dashboard',
   };
 
@@ -185,13 +187,13 @@ function LoginContent() {
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-midnight-700" /></div>
             <div className="relative flex justify-center"><span className="bg-midnight-900 px-4 text-sm text-gray-500">Demo Quick Login</span></div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {DEMO_ACCOUNTS.map(acc => (
               <button
                 key={acc.role}
                 onClick={() => handleDemoLogin(acc)}
                 disabled={demoLoading === acc.role}
-                className={`bg-gradient-to-r ${acc.color} text-white py-3 px-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50`}
+                className={`bg-gradient-to-r ${acc.color} text-white py-3 px-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 text-sm`}
               >
                 {demoLoading === acc.role ? 'Loading...' : acc.role}
               </button>

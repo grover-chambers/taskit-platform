@@ -80,6 +80,16 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
+      if (session.user.role === 'VENDOR') {
+        const orderCheck = await prisma.order.findUnique({
+          where: { id: orderId },
+          include: { enterpriseClient: { select: { ownerId: true } } },
+        });
+        if (!orderCheck || orderCheck.enterpriseClient?.ownerId !== session.user.id) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+      }
+
       return NextResponse.json({ location });
     }
 

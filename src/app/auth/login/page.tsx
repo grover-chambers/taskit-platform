@@ -9,7 +9,8 @@ const DEMO_ACCOUNTS = [
   { role: 'Customer', email: 'wanjiru@email.com', password: 'customer123', dashboard: '/dashboard', color: 'from-brand-500 to-yellow-600' },
   { role: 'Rider', email: 'peter.m@taskit.co.ke', password: 'rider123', dashboard: '/rider', color: 'from-blue-600 to-blue-700' },
   { role: 'Vendor', email: 'mama.njeri@taskit.co.ke', password: 'vendor123', dashboard: '/vendor', color: 'from-purple-600 to-purple-700' },
-  { role: 'Mtaago', email: 'mtaago@taskit.co.ke', password: 'mtaago123', dashboard: '/mtaago', color: 'from-haraka-600 to-emerald-700' },
+  { role: 'Boss', email: 'kanini.boss@taskit.co.ke', password: 'boss123', dashboard: '/mtaago', color: 'from-amber-600 to-amber-700' },
+  { role: 'Operator', email: 'kanini.desk@taskit.co.ke', password: 'desk123', dashboard: '/mtaago', color: 'from-haraka-600 to-emerald-700' },
 ];
 
 export default function LoginPage() {

@@ -30,7 +30,9 @@ model User {
   reviewsReceived      Review[]             @relation("ReviewTarget")
   notifications        Notification[]
   enterpriseClients    EnterpriseClient[]
-  bookings             Booking[]            @relation("BookingCustomer")
+  enterpriseMemberships EnterpriseUser[]
+  auditLogs             AuditLog[]
+  bookings              Booking[]            @relation("BookingCustomer")
   enterpriseDeliveries EnterpriseDelivery[] @relation("EnterpriseRider")
   supportTickets       SupportTicket[]      @relation("TicketCustomer")
   riderTickets         SupportTicket[]
@@ -395,17 +397,54 @@ model EnterpriseClient {
   name      String
   apiKey    String   @unique
   contact   String?
-  rate      Int      @default(120) // per-delivery rate
+  rate      Int      @default(120)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-   ownerId    String
-   owner      User                 @relation(fields: [ownerId], references: [id])
-   deliveries EnterpriseDelivery[]
-   orders     Order[]
+  ownerId    String
+  owner      User                 @relation(fields: [ownerId], references: [id])
+  members    EnterpriseUser[]
+  deliveries EnterpriseDelivery[]
+  orders     Order[]
+  auditLogs  AuditLog[]
 
-   @@map("enterprise_clients")
+  @@map("enterprise_clients")
+}
+
+model EnterpriseUser {
+  id                String   @id @default(cuid())
+  userId            String
+  enterpriseClientId String
+  role              String   @default("OPERATOR")
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enterpriseClient EnterpriseClient @relation(fields: [enterpriseClientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, enterpriseClientId])
+  @@index([enterpriseClientId])
+  @@map("enterprise_users")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  enterpriseClientId String
+  userId        String
+  action        String
+  entityType    String
+  entityId      String?
+  details       String?
+  createdAt     DateTime @default(now())
+
+  enterpriseClient EnterpriseClient @relation(fields: [enterpriseClientId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([enterpriseClientId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 model EnterpriseDelivery {

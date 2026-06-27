@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
+import { useEnterprise } from '../EnterpriseContext';
 
 interface Notification {
   id: string;
@@ -28,6 +29,7 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 export default function MtaagoNotificationsPage() {
+  const { subRole, loading: roleLoading } = useEnterprise();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
@@ -74,7 +76,7 @@ export default function MtaagoNotificationsPage() {
     } catch {}
   };
 
-  if (loading) {
+  if (roleLoading || loading) {
     return (
       <div className="px-6 pt-6 pb-24">
         <div className="flex items-center justify-center py-12">
@@ -87,10 +89,12 @@ export default function MtaagoNotificationsPage() {
     );
   }
 
+  const isOwner = subRole === 'OWNER';
+
   return (
     <div className="px-6 pt-6 pb-24">
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-white font-bold text-lg">Notifications</h1>
+        <h1 className="text-white font-bold text-lg">{isOwner ? 'Alerts' : 'Notifications'}</h1>
         {unread > 0 && (
           <button
             onClick={markAllRead}

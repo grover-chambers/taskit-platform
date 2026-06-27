@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
+import { useEnterprise } from '../EnterpriseContext';
 
 interface Rider {
   id: string;
@@ -22,6 +23,10 @@ interface RidersData {
 }
 
 const STATUS_COLORS: Record<string, string> = {
+  PRICED: 'bg-yellow-500/15 text-yellow-400',
+  PAID: 'bg-blue-500/15 text-blue-400',
+  PACKED: 'bg-teal-500/15 text-teal-400',
+  AWAITING_RIDER: 'bg-orange-500/15 text-orange-400',
   RECEIVED: 'bg-gray-500/15 text-gray-400',
   ACCEPTED: 'bg-haraka-500/15 text-haraka-400',
   ASSIGNED: 'bg-purple-500/15 text-purple-400',
@@ -39,6 +44,7 @@ const KYC_COLORS: Record<string, string> = {
 };
 
 export default function MtaagoRidersPage() {
+  const { subRole } = useEnterprise();
   const [riders, setRiders] = useState<RidersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showOffline, setShowOffline] = useState(false);
@@ -64,7 +70,7 @@ export default function MtaagoRidersPage() {
     return (
       <div className="px-6 pt-6 pb-24">
         <div className="flex items-center justify-center py-12">
-          <p className="text-gray-500 text-sm">Loading...</p>
+          <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
         </div>
       </div>
     );
@@ -80,9 +86,18 @@ export default function MtaagoRidersPage() {
     );
   }
 
+  const isOperator = subRole === 'OPERATOR';
+  const availableOnline = riders.online.filter(r => !r.currentOrder);
+
   return (
     <div className="px-6 pt-6 pb-24">
-      <h1 className="text-white font-bold text-lg mb-5">Rider Board</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-white font-bold text-lg">Rider Board</h1>
+        <div className="flex items-center gap-2">
+          <span className="bg-green-500/15 text-green-400 text-[9px] font-bold px-2 py-0.5 rounded-md">{availableOnline.length} available</span>
+          <span className="bg-midnight-800 text-gray-400 text-[9px] font-bold px-2 py-0.5 rounded-md">{riders.online.length} online</span>
+        </div>
+      </div>
 
       {riders.online.length === 0 && riders.offline.length === 0 && (
         <div className="text-center py-12">

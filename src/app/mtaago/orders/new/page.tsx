@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useEnterprise } from '../../EnterpriseContext';
 
 interface Zone {
   id: string;
@@ -18,6 +19,7 @@ interface RecentRecipient {
 
 export default function MtaagoNewOrderPage() {
   const router = useRouter();
+  const { subRole, loading: roleLoading } = useEnterprise();
   const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -38,7 +40,7 @@ export default function MtaagoNewOrderPage() {
       try {
         const [zonesRes, ordersRes] = await Promise.all([
           fetch('/api/zones'),
-          fetch('/api/vendor/orders?status=DELIVERED&limit=10'),
+          fetch('/api/enterprise/orders?status=DELIVERED&limit=10'),
         ]);
         if (zonesRes.ok) {
           const data = await zonesRes.json();
@@ -77,7 +79,7 @@ export default function MtaagoNewOrderPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/vendor/orders', {
+      const res = await fetch('/api/enterprise/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -109,7 +111,7 @@ export default function MtaagoNewOrderPage() {
     if (r.dropoff) setDropoffLocation(r.dropoff);
   };
 
-  if (loading) {
+  if (roleLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-2">
@@ -120,13 +122,24 @@ export default function MtaagoNewOrderPage() {
     );
   }
 
+  if (subRole !== 'OPERATOR') {
+    return (
+      <div className="px-6 pt-6 pb-24 text-center">
+        <div className="text-4xl mb-3">🔒</div>
+        <h3 className="text-white font-bold text-base mb-1">Operators Only</h3>
+        <p className="text-gray-400 text-sm">Only operators can create new orders</p>
+        <Link href="/mtaago" className="inline-block mt-4 bg-haraka-500/15 border border-haraka-500/30 text-haraka-500 px-4 py-2 rounded-lg text-xs font-bold hover:bg-haraka-500/25 transition-colors">Back to Overview</Link>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="text-haraka-500 text-4xl mb-3">✓</div>
           <h2 className="text-white font-bold text-lg mb-1">Order Created</h2>
-          <p className="text-gray-400 text-sm">Redirecting to dashboard...</p>
+          <p className="text-gray-400 text-sm">Status: PRICED — awaiting payment</p>
         </div>
       </div>
     );
@@ -139,6 +152,7 @@ export default function MtaagoNewOrderPage() {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </Link>
         <h1 className="text-white font-bold text-lg">New Delivery</h1>
+        <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">PRICED</span>
       </div>
 
       {recentRecipients.length > 0 && (
@@ -268,6 +282,7 @@ export default function MtaagoNewOrderPage() {
           <div className="bg-midnight-800 border border-haraka-500/30 rounded-xl p-4 text-center">
             <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-1">Delivery Price</p>
             <p className="text-haraka-500 font-bold text-xl">KSh {selectedZone.price}</p>
+            <p className="text-[10px] text-gray-500 mt-1">Order created at PRICED — confirm payment next</p>
           </div>
         )}
 
@@ -282,11 +297,11 @@ export default function MtaagoNewOrderPage() {
           disabled={submitting || !zoneId}
           className="w-full bg-haraka-500 text-midnight-950 py-3.5 rounded-xl font-bold text-sm hover:bg-haraka-400 transition-colors active:scale-[0.98] disabled:opacity-50"
         >
-          {submitting ? 'Creating...' : 'Create Delivery Order'}
+          {submitting ? 'Creating...' : 'Create Order (PRICED)'}
         </button>
 
         <p className="text-center text-gray-500 text-[10px]">
-          Postpaid — no payment required at creation
+          Order created as PRICED — confirm payment on dashboard
         </p>
       </form>
     </div>

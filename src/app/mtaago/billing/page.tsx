@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useEnterprise } from '../EnterpriseContext';
 
 interface BillingOrder {
   id: string;
@@ -36,6 +37,7 @@ const MONTHS = [
 ];
 
 export default function MtaagoBillingPage() {
+  const { enterprise, subRole, loading: roleLoading } = useEnterprise();
   const [billing, setBilling] = useState<BillingData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -53,11 +55,11 @@ export default function MtaagoBillingPage() {
     fetchBilling();
   }, []);
 
-  if (loading) {
+  if (roleLoading || loading) {
     return (
       <div className="px-6 pt-6 pb-24">
         <div className="flex items-center justify-center py-12">
-          <p className="text-gray-500 text-sm">Loading...</p>
+          <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
         </div>
       </div>
     );
@@ -79,7 +81,12 @@ export default function MtaagoBillingPage() {
 
   return (
     <div className="px-6 pt-6 pb-24">
-      <h1 className="text-white font-bold text-lg mb-5">Monthly Invoice</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-white font-bold text-lg">Monthly Invoice</h1>
+        {enterprise && (
+          <span className="text-gray-500 text-[9px] font-semibold">{enterprise.name}</span>
+        )}
+      </div>
 
       <div className="bg-midnight-800 border border-haraka-500/30 rounded-xl p-5 mb-4">
         <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-1">{currentMonthName}</p>

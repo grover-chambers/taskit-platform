@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -14,8 +15,8 @@ export async function GET(req: Request) {
     const map: Record<string, string> = {};
     settings.forEach(s => { map[s.key] = s.value; });
     return NextResponse.json({ settings: map });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
       create: { key, value },
     });
     return NextResponse.json({ setting });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

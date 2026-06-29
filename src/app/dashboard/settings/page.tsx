@@ -1,12 +1,32 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [locationEnabled, setLocationEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const v = localStorage.getItem('settings_notificationsEnabled');
+      return v !== null ? v === 'true' : true;
+    }
+    return true;
+  });
+  const [locationEnabled, setLocationEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const v = localStorage.getItem('settings_locationEnabled');
+      return v !== null ? v === 'true' : true;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('settings_notificationsEnabled', String(notificationsEnabled));
+  }, [notificationsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('settings_locationEnabled', String(locationEnabled));
+  }, [locationEnabled]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');

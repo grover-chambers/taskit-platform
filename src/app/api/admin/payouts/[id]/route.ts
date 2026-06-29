@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { sendKycStatusEmail } from '@/lib/email';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function PATCH(
   request: Request,
@@ -40,6 +40,14 @@ export async function PATCH(
           approvedAt: new Date(),
         },
       });
+      await prisma.notification.create({
+        data: {
+          userId: payout.riderId,
+          title: 'Payout Approved',
+          body: `Your payout of KSh ${payout.amount} has been approved`,
+          type: 'PAYMENT',
+        },
+      });
       return NextResponse.json({ payout: updated });
     }
 
@@ -63,6 +71,15 @@ export async function PATCH(
           data: { payoutStatus: 'PAID' },
         });
 
+        await tx.notification.create({
+          data: {
+            userId: payout.riderId,
+            title: 'Payout Received',
+            body: `Your payout of KSh ${payout.amount} has been sent${reference ? ` — Ref: ${reference}` : ''}`,
+            type: 'PAYMENT',
+          },
+        });
+
         return p;
       });
       return NextResponse.json({ payout: updated });
@@ -83,13 +100,22 @@ export async function PATCH(
           data: { payoutStatus: 'REJECTED' },
         });
 
+        await tx.notification.create({
+          data: {
+            userId: payout.riderId,
+            title: 'Payout Rejected',
+            body: `Your payout of KSh ${payout.amount} was rejected. Contact support.`,
+            type: 'PAYMENT',
+          },
+        });
+
         return p;
       });
       return NextResponse.json({ payout: updated });
     }
 
     return NextResponse.json({ error: 'Invalid action. Use: approve, pay, or reject' }, { status: 400 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

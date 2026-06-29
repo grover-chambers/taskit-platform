@@ -33,7 +33,7 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Cancelled',
 };
 
-const ACTIVE_STATUSES = ['RECEIVED', 'ACCEPTED', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'];
+const ACTIVE_STATUSES = ['RECEIVED', 'ACCEPTED', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'PRICED', 'PAID', 'PACKED', 'AWAITING_RIDER'];
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -55,7 +55,6 @@ export default function VendorOrdersPage() {
   const fetchOrders = useCallback(async () => {
     try {
       let url = '/api/vendor/orders';
-      if (tab === 'ACTIVE') url += '?status=ACTIVE';
       if (tab === 'COMPLETED') url += '?status=DELIVERED';
       const res = await fetch(url);
       if (res.ok) {

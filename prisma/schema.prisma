@@ -16,6 +16,8 @@ model User {
   role          Role      @default(CUSTOMER)
   emailVerified DateTime?
   image         String?
+  loginAttempts Int       @default(0)
+  lockedUntil   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -484,6 +486,19 @@ model Notification {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+// ── PASSWORD RESET ──
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String
+  tokenHash String   @unique
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("password_resets")
 }
 
 // ── SETTINGS ──

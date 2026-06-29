@@ -5,25 +5,22 @@ import { useParams } from 'next/navigation';
 
 interface Order {
   id: string;
-  shortId: string;
   errandDescription: string;
   status: string;
   totalAmount: number;
   pickupLocation: string;
   dropoffLocation: string;
-  deliveryOtp: string | null;
   weightKg: number | null;
+  weightSurcharge: number;
   createdAt: string;
 }
 
 interface Customer {
   name: string;
-  phone: string;
 }
 
 interface Rider {
   name: string;
-  phone: string;
   plateNumber: string;
   rating: number;
 }
@@ -36,7 +33,7 @@ interface RiderLocation {
   lat: number;
   lng: number;
   updatedAt: string;
-  speed: number | null;
+  speedKmh: number | null;
 }
 
 interface StatusLog {
@@ -53,7 +50,7 @@ interface TrackingData {
   statusLogs: StatusLog[];
 }
 
-const PIPELINE_STEPS = [
+const PIPELINE_STEPS_STANDARD = [
   { key: 'RECEIVED', label: 'Received' },
   { key: 'ACCEPTED', label: 'Accepted' },
   { key: 'ASSIGNED', label: 'Assigned' },
@@ -62,7 +59,22 @@ const PIPELINE_STEPS = [
   { key: 'DELIVERED', label: 'Delivered' },
 ];
 
+const PIPELINE_STEPS_ENTERPRISE = [
+  { key: 'PRICED', label: 'Priced' },
+  { key: 'PAID', label: 'Paid' },
+  { key: 'PACKED', label: 'Packed' },
+  { key: 'AWAITING_RIDER', label: 'Awaiting Rider' },
+  { key: 'ASSIGNED', label: 'Assigned' },
+  { key: 'PICKED_UP', label: 'Picked Up' },
+  { key: 'IN_TRANSIT', label: 'In Transit' },
+  { key: 'DELIVERED', label: 'Delivered' },
+];
+
 const STATUS_INDEX: Record<string, number> = {
+  PRICED: 0,
+  PAID: 1,
+  PACKED: 2,
+  AWAITING_RIDER: 3,
   RECEIVED: 0,
   ACCEPTED: 1,
   ASSIGNED: 2,
@@ -71,6 +83,19 @@ const STATUS_INDEX: Record<string, number> = {
   DELIVERED: 5,
   CANCELLED: -1,
 };
+
+const ENTERPRISE_STATUSES = new Set(['PRICED', 'PAID', 'PACKED', 'AWAITING_RIDER']);
+
+function getPipelineSteps(order: Order) {
+  if (ENTERPRISE_STATUSES.has(order.status)) return PIPELINE_STEPS_ENTERPRISE;
+  return PIPELINE_STEPS_STANDARD;
+}
+
+function getStepIndex(status: string, steps: { key: string }[]) {
+  if (status === 'CANCELLED') return -1;
+  const idx = steps.findIndex((s) => s.key === status);
+  return idx >= 0 ? idx : 0;
+}
 
 function formatTimeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -127,7 +152,8 @@ export default function TrackPage() {
   }
 
   const { order, rider, zone, riderLocation, statusLogs } = data;
-  const currentIdx = STATUS_INDEX[order.status] ?? -1;
+  const pipelineSteps = getPipelineSteps(order);
+  const currentIdx = getStepIndex(order.status, pipelineSteps);
   const isCancelled = order.status === 'CANCELLED';
   const isActiveStatus = ['IN_TRANSIT', 'ASSIGNED', 'PICKED_UP'].includes(order.status);
   const isDelivered = order.status === 'DELIVERED';
@@ -150,13 +176,13 @@ export default function TrackPage() {
             {isCancelled ? 'Cancelled' : order.status.replace(/_/g, ' ')}
           </p>
           {!isCancelled && !isDelivered && (
-            <p className="text-gray-500 text-[10px] mt-1">#{order.shortId || order.id.slice(-7).toUpperCase()}</p>
+            <p className="text-gray-500 text-[10px] mt-1">#{order.id.slice(-7).toUpperCase()}</p>
           )}
         </div>
 
         <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-4 mb-4">
           <div className="flex items-center justify-between">
-            {PIPELINE_STEPS.map((step, i) => {
+            {pipelineSteps.map((step, i) => {
               const isCompleted = !isCancelled && currentIdx >= i;
               const isCurrent = !isCancelled && currentIdx === i;
               return (
@@ -171,7 +197,7 @@ export default function TrackPage() {
                       isCompleted || isCurrent ? 'text-haraka-500' : 'text-midnight-700'
                     }`}>{step.label}</span>
                   </div>
-                  {i < PIPELINE_STEPS.length - 1 && (
+                  {i < pipelineSteps.length - 1 && (
                     <div className={`flex-1 h-[2px] mx-0.5 mb-4 ${
                       isCompleted && currentIdx > i ? 'bg-haraka-500' : 'bg-midnight-700'
                     }`} />
@@ -182,14 +208,7 @@ export default function TrackPage() {
           </div>
         </div>
 
-        {order.deliveryOtp && (
-          <div className="bg-haraka-500/10 border border-haraka-500/30 rounded-xl p-5 mb-4 text-center">
-            <p className="text-haraka-500 font-mono text-4xl tracking-[0.4em] font-bold mb-2">
-              {order.deliveryOtp}
-            </p>
-            <p className="text-gray-400 text-xs">Give this code to the rider on arrival</p>
-          </div>
-        )}
+        {/* The customer receives OTP via SMS/WhatsApp notification — not on tracking page */}
 
         <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-4 mb-4">
           <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-3">Order Details</p>
@@ -231,14 +250,8 @@ export default function TrackPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-white text-sm font-semibold">{rider.name}</p>
-                <p className="text-gray-400 text-xs">{rider.plateNumber} · ⭐ {rider.rating.toFixed(1)}</p>
+                <p className="text-gray-400 text-xs">{rider.plateNumber} · ⭐ {typeof rider.rating === 'number' ? rider.rating.toFixed(1) : '5.0'}</p>
               </div>
-              <a
-                href={`tel:${rider.phone}`}
-                className="bg-haraka-500/10 border border-haraka-500/30 text-haraka-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-haraka-500/20 transition-colors active:scale-[0.98]"
-              >
-                Call
-              </a>
             </div>
           </div>
         )}
@@ -258,10 +271,10 @@ export default function TrackPage() {
                 <span className="text-gray-400 text-xs">Last updated</span>
                 <span className="text-gray-300 text-xs">{formatTimeAgo(riderLocation.updatedAt)}</span>
               </div>
-              {riderLocation.speed != null && (
+              {riderLocation.speedKmh != null && (
                 <div className="flex justify-between">
                   <span className="text-gray-400 text-xs">Speed</span>
-                  <span className="text-gray-300 text-xs">{riderLocation.speed} km/h</span>
+                  <span className="text-gray-300 text-xs">{riderLocation.speedKmh} km/h</span>
                 </div>
               )}
             </div>
@@ -269,7 +282,7 @@ export default function TrackPage() {
         )}
 
         <a
-          href={`https://wa.me/254797100144?text=${encodeURIComponent(`Hi, I need help with my delivery order #${order.shortId || order.id.slice(-7).toUpperCase()}`)}`}
+          href={`https://wa.me/254797100144?text=${encodeURIComponent(`Hi, I need help with my delivery order #${order.id.slice(-7).toUpperCase()}`)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="block bg-green-600 text-white text-center py-3 rounded-xl font-bold text-sm mb-6 hover:bg-green-500 transition-colors active:scale-[0.98]"

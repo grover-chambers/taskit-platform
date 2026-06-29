@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -16,8 +17,8 @@ export async function GET() {
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     return NextResponse.json({ user });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -54,7 +55,7 @@ export async function PATCH(request: Request) {
     });
 
     return NextResponse.json({ success: true, user });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

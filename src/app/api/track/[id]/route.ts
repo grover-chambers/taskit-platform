@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
+  const forwarded = _req.headers.get('x-forwarded-for') || _req.headers.get('x-real-ip') || 'unknown';
+  const rl = rateLimit(`track:${forwarded}`, { windowMs: 60_000, max: 30 });
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   const { id } = params;
 
   const order = await prisma.order.findUnique({
@@ -15,22 +22,18 @@ export async function GET(
       status: true,
       pickupLocation: true,
       dropoffLocation: true,
-      contactPhone: true,
-      specialInstructions: true,
-      urgency: true,
-      deliveryOtp: true,
       totalAmount: true,
       createdAt: true,
       weightKg: true,
+      weightSurcharge: true,
       customer: { select: { name: true } },
       rider: {
         select: {
           name: true,
-          phone: true,
           riderDetail: { select: { plateNumber: true, rating: true } },
         },
       },
-      zone: { select: { name: true, price: true } },
+      zone: { select: { name: true } },
       statusLogs: {
         orderBy: { createdAt: 'asc' },
         select: { status: true, note: true, createdAt: true },
@@ -66,9 +69,21 @@ export async function GET(
   }
 
   return NextResponse.json({
-    order,
-    customer: order.customer,
-    rider: order.rider,
+    order: {
+      id: order.id,
+      errandDescription: order.errandDescription,
+      status: order.status,
+      pickupLocation: order.pickupLocation,
+      dropoffLocation: order.dropoffLocation,
+      totalAmount: order.totalAmount,
+      createdAt: order.createdAt,
+      weightKg: order.weightKg,
+      weightSurcharge: order.weightSurcharge,
+    },
+    customer: order.customer ? { name: order.customer.name } : null,
+    rider: order.rider
+      ? { name: order.rider.name, plateNumber: order.rider.riderDetail?.plateNumber, rating: order.rider.riderDetail?.rating }
+      : null,
     zone: order.zone,
     riderLocation,
     statusLogs: order.statusLogs,

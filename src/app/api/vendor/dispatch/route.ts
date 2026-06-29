@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { hashOtp } from '@/lib/otp';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,13 +12,16 @@ export async function GET() {
   }
 
   try {
-    const client = await prisma.enterpriseClient.findFirst({
-      where: { ownerId: session.user.id },
+    const membership = await prisma.enterpriseUser.findFirst({
+      where: { userId: session.user.id, active: true },
+      include: { enterpriseClient: true },
     });
 
-    if (!client) {
-      return NextResponse.json({ error: 'Enterprise client not found' }, { status: 404 });
+    if (!membership || !membership.enterpriseClient) {
+      return NextResponse.json({ error: 'Not an enterprise member' }, { status: 403 });
     }
+
+    const client = membership.enterpriseClient;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -25,7 +30,7 @@ export async function GET() {
       prisma.order.findMany({
         where: {
           enterpriseClientId: client.id,
-          status: { in: ['RECEIVED', 'ACCEPTED'] },
+          status: { in: ['RECEIVED', 'ACCEPTED', 'PRICED', 'PAID', 'PACKED', 'AWAITING_RIDER'] },
           riderId: null,
         },
         include: {
@@ -64,13 +69,13 @@ export async function GET() {
           plateNumber: true,
           rating: true,
           totalTrips: true,
-          user: { select: { name: true, phone: true } },
+          user: { select: { name: true } },
         },
       }),
       prisma.riderDetail.findMany({
         where: { isOnline: true, currentOrderId: { not: null } },
         include: {
-          user: { select: { name: true, phone: true } },
+          user: { select: { name: true } },
           currentOrder: { select: { id: true, errandDescription: true, status: true } },
         },
       }),
@@ -81,7 +86,7 @@ export async function GET() {
           plateNumber: true,
           rating: true,
           kycStatus: true,
-          user: { select: { name: true, phone: true } },
+          user: { select: { name: true } },
         },
       }),
       prisma.order.count({
@@ -111,8 +116,7 @@ export async function GET() {
       todayRevenue: todayRevenue._sum.totalAmount || 0,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -123,13 +127,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const client = await prisma.enterpriseClient.findFirst({
-      where: { ownerId: session.user.id },
+    const membership = await prisma.enterpriseUser.findFirst({
+      where: { userId: session.user.id, active: true },
+      include: { enterpriseClient: true },
     });
 
-    if (!client) {
-      return NextResponse.json({ error: 'Enterprise client not found' }, { status: 404 });
+    if (!membership || !membership.enterpriseClient) {
+      return NextResponse.json({ error: 'Not an enterprise member' }, { status: 403 });
     }
+
+    const client = membership.enterpriseClient;
 
     const { orderId, riderId } = await request.json();
     if (!orderId || !riderId) {
@@ -141,7 +148,7 @@ export async function POST(request: Request) {
       if (!order) throw new Error('Order not found');
       if (order.enterpriseClientId !== client.id) throw new Error('Order does not belong to your enterprise');
       if (order.riderId) throw new Error('Order already assigned');
-      if (!['RECEIVED', 'ACCEPTED'].includes(order.status)) {
+      if (!['RECEIVED', 'ACCEPTED', 'AWAITING_RIDER', 'PACKED'].includes(order.status)) {
         throw new Error(`Order status ${order.status} cannot be assigned`);
       }
 
@@ -152,6 +159,7 @@ export async function POST(request: Request) {
       if (rider.currentOrderId) throw new Error('Rider already has an active job');
 
       const otp = Math.random().toString().slice(2, 6);
+      const otpHash = await hashOtp(otp);
       const shortId = orderId.slice(-7).toUpperCase();
 
       const updatedOrder = await tx.order.update({
@@ -160,7 +168,7 @@ export async function POST(request: Request) {
           riderId,
           status: 'ASSIGNED',
           assignedAt: new Date(),
-          deliveryOtp: otp,
+          deliveryOtp: otpHash,
           otpGeneratedAt: new Date(),
         },
       });
@@ -216,6 +224,9 @@ export async function POST(request: Request) {
     if (error instanceof Error) {
       const conflictMessages = ['already assigned', 'already has an active job', 'does not belong', 'not online', 'not verified', 'cannot be assigned'];
       const isConflict = conflictMessages.some((m) => error.message.includes(m));
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Internal server error' }, { status: isConflict ? 409 : 500 });
+      }
       return NextResponse.json({ error: error.message }, { status: isConflict ? 409 : 500 });
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
       const order = await tx.order.findUnique({ where: { id: orderId } });
       if (!order) throw new Error('Order not found');
       if (order.riderId) throw new Error('Order already assigned');
-      if (!['RECEIVED', 'ACCEPTED'].includes(order.status)) {
+      if (!['RECEIVED', 'ACCEPTED', 'AWAITING_RIDER'].includes(order.status)) {
         throw new Error(`Order status ${order.status} cannot be assigned`);
       }
 
@@ -77,9 +78,14 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true, order: result });
-  } catch (error: any) {
-    const status = error.message.includes('already') || error.message.includes('not')
-      ? 409 : 500;
-    return NextResponse.json({ error: error.message }, { status });
+  } catch (error: unknown) {
+    const isConflict = error instanceof Error && (
+      error.message.includes('already') || error.message.includes('not')
+    );
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Internal server error' }, { status: isConflict ? 409 : 500 });
+    }
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: isConflict ? 409 : 500 });
   }
 }

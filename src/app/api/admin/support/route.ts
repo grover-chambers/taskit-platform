@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendSupportAlertEmail } from '@/lib/email';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -29,8 +30,8 @@ export async function GET() {
     const inProgressCount = tickets.filter(t => t.status === 'IN_PROGRESS').length;
 
     return NextResponse.json({ tickets, openCount, inProgressCount });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ ticket }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

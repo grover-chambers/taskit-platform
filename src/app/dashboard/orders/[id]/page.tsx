@@ -115,16 +115,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const simulatePayment = async () => {
     setSimulatingPayment(true);
     try {
-      const code = 'DEMO' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      await fetch('/api/payments/mpesa', {
+      await fetch('/api/payments/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id, mpesaTransactionCode: code }),
-      });
-      await fetch('/api/webhooks/mpesa', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id, mpesaTransactionCode: code, confirmed: true }),
+        body: JSON.stringify({ orderId: order.id }),
       });
       await fetchOrder();
     } catch {}

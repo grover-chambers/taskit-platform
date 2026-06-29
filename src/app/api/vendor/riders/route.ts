@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,28 +11,62 @@ export async function GET() {
   }
 
   try {
+    const membership = await prisma.enterpriseUser.findFirst({
+      where: { userId: session.user.id, active: true },
+      include: { enterpriseClient: true },
+    });
+
+    if (!membership) {
+      return NextResponse.json({ error: 'Not an enterprise member' }, { status: 403 });
+    }
+
+    const enterpriseClientId = membership.enterpriseClientId;
+
+    const enterpriseOrderRiderIds = await prisma.order.findMany({
+      where: {
+        enterpriseClientId,
+        riderId: { not: null },
+      },
+      select: { riderId: true },
+      distinct: ['riderId'],
+    });
+
+    const knownRiderIds = enterpriseOrderRiderIds
+      .map(o => o.riderId)
+      .filter((id): id is string => id !== null);
+
     const [online, offline] = await Promise.all([
       prisma.riderDetail.findMany({
-        where: { isOnline: true, kycStatus: 'VERIFIED' },
+        where: {
+          isOnline: true,
+          kycStatus: 'VERIFIED',
+          OR: [
+            { currentOrderId: null },
+            { id: { in: knownRiderIds } },
+          ],
+        },
         select: {
+          id: true,
           plateNumber: true,
           rating: true,
           totalTrips: true,
           todayEarnings: true,
           currentOrderId: true,
-          user: { select: { name: true, phone: true } },
+          user: { select: { name: true } },
         },
       }),
       prisma.riderDetail.findMany({
         where: {
+          id: { in: knownRiderIds.length > 0 ? knownRiderIds : ['__none__'] },
           OR: [{ isOnline: false }, { kycStatus: { not: 'VERIFIED' } }],
         },
         select: {
+          id: true,
           plateNumber: true,
           rating: true,
           kycStatus: true,
           isOnline: true,
-          user: { select: { name: true, phone: true } },
+          user: { select: { name: true } },
         },
       }),
     ]);
@@ -63,7 +98,7 @@ export async function GET() {
     });
 
     return NextResponse.json({ online: onlineWithOrders, offline });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

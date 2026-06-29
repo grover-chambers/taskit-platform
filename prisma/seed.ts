@@ -70,6 +70,13 @@ async function main() {
   const eastleigh = await prisma.zone.create({ data: { id: 'zone-east', name: 'Eastleigh', price: 300, active: true } });
   const ngara = await prisma.zone.create({ data: { id: 'zone-ngara', name: 'Ngara / Kamukunji', price: 300, active: true } });
 
+  // Thika zones (KaniniGo 5-zone specification)
+  const thikaTown = await prisma.zone.create({ data: { id: 'zone-thika-0', name: 'Thika Town Core (0-2km)', price: 100, active: true } });
+  const thikaInner = await prisma.zone.create({ data: { id: 'zone-thika-1', name: 'Inner Thika (2-5km)', price: 200, active: true } });
+  const thikaOuter = await prisma.zone.create({ data: { id: 'zone-thika-2', name: 'Outer Thika (5-10km)', price: 350, active: true } });
+  const thikaRural = await prisma.zone.create({ data: { id: 'zone-thika-3', name: 'Thika Rural/Bypass (10-18km)', price: 600, active: true } });
+  const thikaOut = await prisma.zone.create({ data: { id: 'zone-thika-4', name: 'Out-of-Town (18-30km)', price: 1000, active: true } });
+
   await prisma.errandType.createMany({
     data: [
       { name: 'Shopping', icon: '🛍️' },
@@ -287,43 +294,44 @@ async function main() {
   const entOrder1 = await prisma.order.create({
     data: {
       id: 'ent-order-001', errandDescription: '50kg Unga, 20L Cooking Oil — Kangemi Market',
-      status: 'IN_TRANSIT', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 120,
+      status: 'IN_TRANSIT', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 300,
       pickupLocation: 'Kanini Haraka Warehouse, Industrial Area', dropoffLocation: 'Mama Mboga, Kangemi Market',
-      contactPhone: '+254700000010', zoneId: westlands.id, vendorId: kaniniBoss.id,
+      contactPhone: '+254700000010', zoneId: thikaOuter.id, vendorId: kaniniBoss.id,
       enterpriseClientId: kanini.id, customerId: kaniniBoss.id, riderId: riderUser.id, assignedAt: new Date(),
-      deliveryOtp: '5531',
+      deliveryOtp: '5531', weightKg: 70, weightSurcharge: 500,
     },
   });
 
   const entOrder2 = await prisma.order.create({
     data: {
       id: 'ent-order-002', errandDescription: 'Office supplies — A4 Paper x5, Toner Cartridge',
-      status: 'ACCEPTED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 120,
+      status: 'ACCEPTED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 200,
       pickupLocation: 'Kanini Haraka Warehouse, Industrial Area', dropoffLocation: 'I&M Tower 14F',
-      contactPhone: '+254700000010', zoneId: cbd.id, vendorId: kaniniBoss.id,
+      contactPhone: '+254700000010', zoneId: thikaInner.id, vendorId: kaniniBoss.id,
       enterpriseClientId: kanini.id, customerId: kaniniBoss.id,
+      weightKg: 15, weightSurcharge: 100,
     },
   });
 
   const entOrder3 = await prisma.order.create({
     data: {
       id: 'ent-order-003', errandDescription: 'Restaurant supplies — Chef knives set, Cutting boards',
-      status: 'DELIVERED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 120,
+      status: 'DELIVERED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 350,
       pickupLocation: 'Kanini Haraka Warehouse', dropoffLocation: 'The Carnivore, Langata',
-      contactPhone: '+254700000010', zoneId: cbd.id, vendorId: kaniniBoss.id,
+      contactPhone: '+254700000010', zoneId: thikaTown.id, vendorId: kaniniBoss.id,
       enterpriseClientId: kanini.id, customerId: kaniniBoss.id, riderId: riderUser.id, assignedAt: pastDate(2),
-      createdAt: pastDate(2),
+      createdAt: pastDate(2), weightKg: 3, weightSurcharge: 0,
     },
   });
 
   const entOrder4 = await prisma.order.create({
     data: {
       id: 'ent-order-004', errandDescription: 'Medical supplies — Gloves x10 boxes, Sanitizer',
-      status: 'DELIVERED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 120,
+      status: 'DELIVERED', paymentStatus: 'PAID', paymentMethod: 'INVOICE', totalAmount: 400,
       pickupLocation: 'Kanini Haraka Warehouse', dropoffLocation: 'Kenyatta Hospital Pharmacy',
-      contactPhone: '+254700000010', zoneId: cbd.id, vendorId: kaniniBoss.id,
+      contactPhone: '+254700000010', zoneId: thikaRural.id, vendorId: kaniniBoss.id,
       enterpriseClientId: kanini.id, customerId: kaniniBoss.id, riderId: riderUser2.id, assignedAt: pastDate(8),
-      createdAt: pastDate(8),
+      createdAt: pastDate(8), weightKg: 35, weightSurcharge: 250,
     },
   });
 
@@ -358,40 +366,44 @@ async function main() {
   const entOrder5 = await prisma.order.create({
     data: {
       id: 'ent-order-005', errandDescription: 'Fresh produce — Tomatoes 20kg, Onions 10kg, Potatoes 50kg',
-      status: 'PRICED', paymentStatus: 'UNPAID', paymentMethod: 'PENDING', totalAmount: 250,
+      status: 'PRICED', paymentStatus: 'UNPAID', paymentMethod: 'PENDING', totalAmount: 600,
       pickupLocation: 'Kanini Haraka Warehouse, Industrial Area', dropoffLocation: 'Greenhouse Restaurant, Kilimani',
-      contactPhone: '+254700000011', zoneId: westlands.id, vendorId: kaniniDesk.id,
+      contactPhone: '+254700000011', zoneId: thikaRural.id, vendorId: kaniniDesk.id,
       enterpriseClientId: kanini.id, customerId: kaniniDesk.id,
+      weightKg: 80, weightSurcharge: 500,
     },
   });
 
   const entOrder6 = await prisma.order.create({
     data: {
       id: 'ent-order-006', errandDescription: 'Electronics — 2x Power Banks, Phone Chargers x10',
-      status: 'PAID', paymentStatus: 'PAID', paymentMethod: 'MANUAL', totalAmount: 120,
+      status: 'PAID', paymentStatus: 'PAID', paymentMethod: 'MANUAL', totalAmount: 100,
       pickupLocation: 'Kanini Haraka Warehouse', dropoffLocation: 'Tech Hub, Ngong Road',
-      contactPhone: '+254700000011', zoneId: cbd.id, vendorId: kaniniDesk.id,
+      contactPhone: '+254700000011', zoneId: thikaTown.id, vendorId: kaniniDesk.id,
       enterpriseClientId: kanini.id, customerId: kaniniDesk.id,
+      weightKg: 4, weightSurcharge: 0,
     },
   });
 
   const entOrder7 = await prisma.order.create({
     data: {
       id: 'ent-order-007', errandDescription: 'Catering supplies — Chafing dishes x4, Serving spoons',
-      status: 'PACKED', paymentStatus: 'PAID', paymentMethod: 'MPESA', mpesaReceipt: 'QKR3L7M9X2', totalAmount: 300,
+      status: 'PACKED', paymentStatus: 'PAID', paymentMethod: 'MPESA', mpesaReceipt: 'QKR3L7M9X2', totalAmount: 350,
       pickupLocation: 'Kanini Haraka Warehouse', dropoffLocation: 'Safari Park Hotel, Thika Road',
-      contactPhone: '+254700000011', zoneId: cbd.id, vendorId: kaniniDesk.id,
+      contactPhone: '+254700000011', zoneId: thikaOuter.id, vendorId: kaniniDesk.id,
       enterpriseClientId: kanini.id, customerId: kaniniDesk.id,
+      weightKg: 25, weightSurcharge: 250,
     },
   });
 
   const entOrder8 = await prisma.order.create({
     data: {
       id: 'ent-order-008', errandDescription: 'Stationery — Printing paper x20 reams, Staplers x5',
-      status: 'AWAITING_RIDER', paymentStatus: 'PAID', paymentMethod: 'MANUAL', totalAmount: 250,
+      status: 'AWAITING_RIDER', paymentStatus: 'PAID', paymentMethod: 'MANUAL', totalAmount: 300,
       pickupLocation: 'Kanini Haraka Warehouse', dropoffLocation: 'UAP Tower, Upper Hill',
-      contactPhone: '+254700000011', zoneId: cbd.id, vendorId: kaniniDesk.id,
+      contactPhone: '+254700000011', zoneId: thikaInner.id, vendorId: kaniniDesk.id,
       enterpriseClientId: kanini.id, customerId: kaniniDesk.id,
+      weightKg: 12, weightSurcharge: 100,
     },
   });
 

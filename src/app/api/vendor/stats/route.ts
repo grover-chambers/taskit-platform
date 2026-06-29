@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,13 +11,16 @@ export async function GET() {
   }
 
   try {
-    const client = await prisma.enterpriseClient.findFirst({
-      where: { ownerId: session.user.id },
+    const membership = await prisma.enterpriseUser.findFirst({
+      where: { userId: session.user.id, active: true },
+      include: { enterpriseClient: true },
     });
 
-    if (!client) {
-      return NextResponse.json({ error: 'Enterprise client not found' }, { status: 404 });
+    if (!membership || !membership.enterpriseClient) {
+      return NextResponse.json({ error: 'Not an enterprise member' }, { status: 403 });
     }
+
+    const client = membership.enterpriseClient;
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -48,7 +52,7 @@ export async function GET() {
       clientName: client.name,
       lastOrder,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

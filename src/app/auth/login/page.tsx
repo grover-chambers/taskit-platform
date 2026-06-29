@@ -4,13 +4,13 @@ import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-const DEMO_ACCOUNTS = [
-  { role: 'Admin', email: 'admin@taskit.co.ke', password: 'MunyagaMartin.12', dashboard: '/admin', color: 'from-red-600 to-red-700' },
-  { role: 'Customer', email: 'wanjiru@email.com', password: 'customer123', dashboard: '/dashboard', color: 'from-brand-500 to-yellow-600' },
-  { role: 'Rider', email: 'peter.m@taskit.co.ke', password: 'rider123', dashboard: '/rider', color: 'from-blue-600 to-blue-700' },
-  { role: 'Vendor', email: 'mama.njeri@taskit.co.ke', password: 'vendor123', dashboard: '/vendor', color: 'from-purple-600 to-purple-700' },
-  { role: 'Boss', email: 'kanini.boss@taskit.co.ke', password: 'boss123', dashboard: '/mtaago', color: 'from-amber-600 to-amber-700' },
-  { role: 'Operator', email: 'kanini.desk@taskit.co.ke', password: 'desk123', dashboard: '/mtaago', color: 'from-haraka-600 to-emerald-700' },
+const DEMO_ROLES = [
+  { role: 'admin', label: 'Admin', dashboard: '/admin', color: 'from-red-600 to-red-700' },
+  { role: 'customer', label: 'Customer', dashboard: '/dashboard', color: 'from-brand-500 to-yellow-600' },
+  { role: 'rider', label: 'Rider', dashboard: '/rider', color: 'from-blue-600 to-blue-700' },
+  { role: 'vendor', label: 'Vendor', dashboard: '/vendor', color: 'from-purple-600 to-purple-700' },
+  { role: 'boss', label: 'Boss', dashboard: '/mtaago', color: 'from-amber-600 to-amber-700' },
+  { role: 'operator', label: 'Operator', dashboard: '/mtaago', color: 'from-haraka-600 to-emerald-700' },
 ];
 
 export default function LoginPage() {
@@ -43,6 +43,9 @@ function LoginContent() {
 
   const resetSuccess = searchParams.get('reset') === 'true';
   const registered = searchParams.get('registered') === 'true';
+  const emailVerified = searchParams.get('message') === 'email_verified';
+  const alreadyVerified = searchParams.get('message') === 'already_verified';
+  const invalidToken = searchParams.get('error') === 'invalid_token';
 
   const ROLE_REDIRECTS: Record<string, string> = {
     ADMIN: '/admin',
@@ -66,29 +69,59 @@ function LoginContent() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const res = await signIn('credentials', { email, password, redirect: false });
-    setLoading(false);
-    if (res?.error) {
-      setError('Invalid email or password');
-    } else {
-      const redirect = await getRedirectPath();
-      router.push(redirect);
-      router.refresh();
+    try {
+      const res = await signIn('credentials', { email, password, redirect: false });
+      setLoading(false);
+      if (res?.error) {
+        try {
+          const lockoutRes = await fetch(`/api/auth/check-lockout?email=${encodeURIComponent(email)}`);
+          const lockout = await lockoutRes.json();
+          if (lockout.locked) {
+            setError('Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.');
+          } else {
+            setError('Invalid email or password');
+          }
+        } catch {
+          setError('Invalid email or password');
+        }
+      } else {
+        const redirect = await getRedirectPath();
+        router.push(redirect);
+        router.refresh();
+      }
+    } catch {
+      setLoading(false);
+      setError('An unexpected error occurred. Please try again.');
     }
   };
 
-  const handleDemoLogin = async (acc: typeof DEMO_ACCOUNTS[0]) => {
+  const handleDemoLogin = async (acc: typeof DEMO_ROLES[0]) => {
     setDemoLoading(acc.role);
     setError('');
-    const res = await signIn('credentials', { email: acc.email, password: acc.password, redirect: false });
-    setDemoLoading(null);
-    if (res?.error) {
-      setError('Demo login failed — run seed first');
-    } else {
-      const redirect = await getRedirectPath();
-      router.push(redirect);
-      router.refresh();
+    try {
+      const res = await fetch('/api/auth/demo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: acc.role }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setError(data.error || 'Demo login failed — run seed first');
+        setDemoLoading(null);
+        return;
+      }
+      const signInRes = await signIn('credentials', { email: data.email, password: data.password, redirect: false });
+      if (signInRes?.error) {
+        setError('Demo login failed — run seed first');
+      } else {
+        const redirect = await getRedirectPath();
+        router.push(redirect);
+        router.refresh();
+      }
+    } catch {
+      setError('Demo login failed');
     }
+    setDemoLoading(null);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -153,7 +186,10 @@ function LoginContent() {
         <form onSubmit={handleLogin} className="mt-8 space-y-4">
           {error && <div className="bg-red-900/30 text-red-400 text-sm text-center p-3 rounded-lg">{error}</div>}
           {resetSuccess && <div className="bg-green-900/30 text-green-400 text-sm text-center p-3 rounded-lg">Password reset successfully! Please sign in with your new password.</div>}
-          {registered && <div className="bg-green-900/30 text-green-400 text-sm text-center p-3 rounded-lg">Account created! Check your email for a welcome message.</div>}
+          {registered && <div className="bg-green-900/30 text-green-400 text-sm text-center p-3 rounded-lg">Account created! Check your email to verify your account.</div>}
+          {emailVerified && <div className="bg-green-900/30 text-green-400 text-sm text-center p-3 rounded-lg">Email verified! You can now sign in.</div>}
+          {alreadyVerified && <div className="bg-blue-900/30 text-blue-400 text-sm text-center p-3 rounded-lg">Email already verified. Sign in to continue.</div>}
+          {invalidToken && <div className="bg-red-900/30 text-red-400 text-sm text-center p-3 rounded-lg">Verification link expired or invalid. Please request a new one.</div>}
 
           <div>
             <label className="text-sm font-semibold text-gray-400 block mb-2">Email Address</label>
@@ -189,14 +225,14 @@ function LoginContent() {
             <div className="relative flex justify-center"><span className="bg-midnight-900 px-4 text-sm text-gray-500">Demo Quick Login</span></div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {DEMO_ACCOUNTS.map(acc => (
+            {DEMO_ROLES.map(acc => (
               <button
                 key={acc.role}
                 onClick={() => handleDemoLogin(acc)}
                 disabled={demoLoading === acc.role}
                 className={`bg-gradient-to-r ${acc.color} text-white py-3 px-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 text-sm`}
               >
-                {demoLoading === acc.role ? 'Loading...' : acc.role}
+                {demoLoading === acc.role ? 'Loading...' : acc.label}
               </button>
             ))}
           </div>

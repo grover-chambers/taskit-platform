@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -25,6 +26,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Already rated' }, { status: 409 });
     }
 
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    if (order.customerId !== session.user.id && order.riderId !== session.user.id) {
+      return NextResponse.json({ error: 'You can only review orders you participated in' }, { status: 403 });
+    }
+    if (targetRole === 'RIDER' && order.riderId !== targetId) {
+      return NextResponse.json({ error: 'Target is not the rider for this order' }, { status: 400 });
+    }
+
     const review = await prisma.review.create({
       data: {
         orderId,
@@ -41,7 +53,7 @@ export async function POST(request: Request) {
         where: { targetId, targetRole: 'RIDER' },
         select: { rating: true },
       });
-      const avg = allReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / allReviews.length;
+      const avg = allReviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / allReviews.length;
       await prisma.riderDetail.update({
         where: { id: targetId },
         data: { rating: Math.round(avg * 10) / 10 },
@@ -49,8 +61,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, review });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -65,7 +77,7 @@ export async function GET(request: Request) {
     const orderId = searchParams.get('orderId');
     const targetId = searchParams.get('targetId');
 
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (orderId) where.orderId = orderId;
     if (targetId) where.targetId = targetId;
     if (!orderId && !targetId) where.authorId = session.user.id;
@@ -80,7 +92,7 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({ reviews });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

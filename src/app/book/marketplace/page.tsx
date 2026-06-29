@@ -18,6 +18,7 @@ export default function MarketplaceForm() {
   const [budget, setBudget] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [dropoffAddress, setDropoffAddress] = useState('');
+  const [transactionCode, setTransactionCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -27,7 +28,7 @@ export default function MarketplaceForm() {
   }, []);
 
   const handleSubmit = async () => {
-    if (!selectedZone || !shoppingList) return;
+    if (!selectedZone || !shoppingList || !transactionCode) return;
     setIsSubmitting(true);
     setSubmitError('');
     try {
@@ -37,15 +38,25 @@ export default function MarketplaceForm() {
         body: JSON.stringify({
           zoneId: selectedZone.id,
           errandDescription: shoppingList,
-          totalAmount: budget ? parseInt(budget) : 0,
+          totalAmount: budget ? parseInt(budget) : selectedZone.price,
           orderType: 'MARKETPLACE',
           dropoffLocation: dropoffAddress || undefined,
           contactPhone: contactPhone || undefined,
           specialInstructions: `Budget: KSh ${budget || 'Not specified'}\nShopping list below:`,
+          mpesaTransactionCode: transactionCode,
         }),
       });
       const data = await res.json();
       if (data.success) {
+        if (data.order?.id) {
+          try {
+            await fetch('/api/payments/simulate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderId: data.order.id }),
+            });
+          } catch {}
+        }
         setSubmitted(true);
       } else {
         setSubmitError(data.error || 'Failed to submit');
@@ -62,7 +73,7 @@ export default function MarketplaceForm() {
       <div className="max-w-lg mx-auto px-6 pt-16 text-center">
         <div className="text-6xl mb-4">🎉</div>
         <h2 className="text-2xl font-serif font-bold text-white mb-2">Order Received!</h2>
-        <p className="text-gray-400 text-sm mb-6">We've sent your shopping list to our vendor network. Sit back — we'll text or WhatsApp you when it's being prepared.</p>
+        <p className="text-gray-400 text-sm mb-6">Your marketplace order has been placed and payment is being verified. We'll notify you once it's accepted.</p>
         <div className="bg-midnight-800 border border-midnight-700 rounded-2xl p-5 mb-6 text-left space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">Zone</span>
@@ -72,10 +83,14 @@ export default function MarketplaceForm() {
             <span className="text-gray-400">Items</span>
             <span className="text-white font-semibold text-right max-w-[65%]">{shoppingList}</span>
           </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Delivery Fee</span>
+            <span className="text-orange-500 font-bold">KSh {selectedZone?.price}</span>
+          </div>
         </div>
         <button
           onClick={() => router.push('/dashboard/orders')}
-          className="w-full bg-gold-500 text-midnight-950 py-4 rounded-2xl font-bold hover:bg-gold-400 transition-all active:scale-[0.98]"
+          className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold hover:bg-orange-400 transition-all active:scale-[0.98]"
         >
           View My Orders
         </button>
@@ -92,7 +107,7 @@ export default function MarketplaceForm() {
   return (
     <div className="max-w-lg mx-auto px-6 pt-6">
       <div className="flex space-x-2 mb-8">
-        {[1, 2].map(s => (
+        {[1, 2, 3].map(s => (
           <div key={s} className={`h-1 flex-1 rounded-full transition-all ${step >= s ? 'bg-orange-500' : 'bg-midnight-700'}`} />
         ))}
       </div>
@@ -101,7 +116,6 @@ export default function MarketplaceForm() {
         <div className="bg-red-900/30 text-red-400 text-sm text-center p-3 rounded-xl mb-4">{submitError}</div>
       )}
 
-      {/* STEP 1: Select Zone */}
       {step === 1 && (
         <section>
           <div className="text-center mb-6">
@@ -137,7 +151,6 @@ export default function MarketplaceForm() {
         </section>
       )}
 
-      {/* STEP 2: Shopping List + Details */}
       {step === 2 && selectedZone && (
         <section>
           <button onClick={() => setStep(1)} className="text-orange-500 text-sm font-medium hover:underline mb-4 inline-block">← Change Zone</button>
@@ -191,24 +204,87 @@ export default function MarketplaceForm() {
             </div>
           </div>
 
-          <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-2xl mt-4">
-            <p className="text-gray-300 text-xs leading-relaxed">
-              <span className="text-orange-500 font-bold">How it works:</span> We'll text or WhatsApp your list to our vendor in {selectedZone.name}. They'll confirm availability and pricing before you pay. No hidden fees.
-            </p>
+          <button
+            onClick={() => setStep(3)}
+            disabled={!shoppingList}
+            className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold mt-6 disabled:opacity-50 transition-all hover:bg-orange-400 active:scale-[0.98]"
+          >
+            Continue to Payment
+          </button>
+        </section>
+      )}
+
+      {step === 3 && selectedZone && (
+        <section>
+          <button onClick={() => setStep(2)} className="text-orange-500 text-sm font-medium hover:underline mb-4 inline-block">← Edit Details</button>
+          <div className="text-center mb-4">
+            <div className="text-4xl mb-3">✅</div>
+            <h2 className="text-2xl font-serif font-bold text-white">Confirm & Pay</h2>
+            <p className="text-gray-400 text-sm mt-1">Review and pay for your marketplace order</p>
+          </div>
+
+          <div className="bg-midnight-800 border border-midnight-700 rounded-2xl p-5 space-y-3">
+            <div className="flex justify-between items-center text-sm pb-3 border-b border-midnight-700">
+              <span className="text-gray-400">Zone</span>
+              <span className="font-semibold text-white">{selectedZone.name}</span>
+            </div>
+            <div className="flex justify-between items-start text-sm pb-3 border-b border-midnight-700">
+              <span className="text-gray-400">Shopping List</span>
+              <span className="font-semibold text-white text-right max-w-[65%]">{shoppingList}</span>
+            </div>
+            {budget && (
+              <div className="flex justify-between items-center text-sm pb-3 border-b border-midnight-700">
+                <span className="text-gray-400">Budget</span>
+                <span className="font-semibold text-white">KSh {parseInt(budget).toLocaleString()}</span>
+              </div>
+            )}
+            {dropoffAddress && (
+              <div className="flex justify-between items-center text-sm pb-3 border-b border-midnight-700">
+                <span className="text-gray-400">Drop-off</span>
+                <span className="font-semibold text-white text-right max-w-[65%]">{dropoffAddress}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-2">
+              <span className="font-bold text-white text-lg">Delivery Fee</span>
+              <span className="font-bold text-orange-500 text-2xl">KSh {selectedZone.price}</span>
+            </div>
+          </div>
+
+          <div className="bg-orange-500/10 border border-orange-500/30 p-5 rounded-2xl space-y-3 mt-5">
+            <h3 className="text-orange-500 font-bold text-lg">Pay via M-Pesa</h3>
+            <div className="space-y-1.5 text-white text-sm">
+              <p>1. Go to M-Pesa on your phone</p>
+              <p>2. Select <span className="font-bold">Lipa na M-Pesa</span></p>
+              <p>3. Enter Till Number: <span className="font-bold text-orange-500">123456</span></p>
+              <p>4. Enter Amount: <span className="font-bold text-orange-500">KSh {selectedZone.price}</span></p>
+              <p>5. Complete payment and get your Transaction Code</p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <label className="text-sm font-semibold text-gray-400 block mb-2">M-Pesa Transaction Code</label>
+            <input
+              type="text"
+              value={transactionCode}
+              onChange={e => setTransactionCode(e.target.value.toUpperCase())}
+              placeholder="e.g., SHK5G4R2VN"
+              required
+              className="w-full bg-midnight-800 border border-midnight-700 text-white px-4 py-4 rounded-2xl focus:outline-none focus:border-orange-500 transition-colors placeholder:text-midnight-600 text-center text-lg font-mono tracking-widest"
+            />
           </div>
 
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !shoppingList}
-            className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold mt-6 disabled:opacity-50 transition-all hover:bg-orange-400 active:scale-[0.98] flex justify-center items-center gap-2"
+            disabled={isSubmitting || !transactionCode}
+            className="w-full bg-orange-500 text-white py-5 rounded-2xl font-bold text-lg mt-5 disabled:opacity-50 transition-all hover:bg-orange-400 active:scale-[0.98] flex justify-center items-center gap-2"
           >
             {isSubmitting ? (
               <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              'Submit to Vendor'
+              'Submit Order'
             )}
           </button>
-          <p className="text-center text-xs text-gray-500 mt-3">We'll reach out via text or WhatsApp with pricing</p>
+          <p className="text-center text-xs text-gray-500 mt-3">Payment will be verified automatically</p>
         </section>
       )}
     </div>

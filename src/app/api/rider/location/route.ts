@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { rateLimit } from '@/lib/rate-limit';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -9,10 +11,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const rl = rateLimit(`location:${session.user.id}`, { windowMs: 60_000, max: 120 });
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  }
+
   try {
     const { lat, lng, heading, speedKmh, accuracyM, orderId } = await request.json();
     if (lat == null || lng == null) {
       return NextResponse.json({ error: 'lat and lng required' }, { status: 400 });
+    }
+
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    if (Math.abs(latNum) > 90 || Math.abs(lngNum) > 180) {
+      return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
+    }
+    if (accuracyM != null && Number(accuracyM) > 500) {
+      return NextResponse.json({ error: 'GPS accuracy too low' }, { status: 400 });
     }
 
     const rider = await prisma.riderDetail.findUnique({
@@ -44,8 +60,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -114,7 +130,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

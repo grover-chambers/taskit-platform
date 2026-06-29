@@ -6,7 +6,6 @@ import { useEnterprise } from '../EnterpriseContext';
 
 interface Order {
   id: string;
-  shortId: string;
   errandDescription: string;
   status: string;
   totalAmount: number;
@@ -140,7 +139,7 @@ export default function MtaagoOrdersPage() {
           {orders.map(order => (
             <Link key={order.id} href={`/mtaago/orders/${order.id}`} className="block bg-midnight-800 border border-midnight-700 rounded-xl p-4 hover:border-haraka-500/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
-                <span className="font-mono text-[10px] text-gray-500">#{order.shortId || order.id.slice(-7).toUpperCase()}</span>
+                <span className="font-mono text-[10px] text-gray-500">#{order.id.slice(-7).toUpperCase()}</span>
                 <span className="font-mono text-[10px] text-gray-500">{timeAgo(order.createdAt)}</span>
               </div>
               <p className="text-white text-sm font-semibold mb-1.5">

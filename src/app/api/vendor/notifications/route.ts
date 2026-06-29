@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -22,8 +23,7 @@ export async function GET() {
 
     return NextResponse.json({ notifications, unread });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -54,7 +54,6 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ error: 'No action specified' }, { status: 400 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(error);
   }
 }

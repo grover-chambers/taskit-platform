@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { hashOtp, verifyOtp } from '@/lib/otp';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   ASSIGNED: ['PICKED_UP', 'CANCELLED'],
@@ -29,12 +31,15 @@ export async function GET() {
       where: { id: session.user.id },
       include: {
         user: { select: { name: true, phone: true, email: true, createdAt: true } },
-        documents: { orderBy: { createdAt: 'desc' } },
+        documents: {
+          select: { id: true, docType: true, status: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
-    let orders: any[] = [];
-    let activeOrder: any = null;
+    let orders: Record<string, unknown>[] = [];
+    let activeOrder: Record<string, unknown> | null = null;
 
     if (riderDetail?.currentOrderId) {
       activeOrder = await prisma.order.findUnique({
@@ -62,25 +67,33 @@ export async function GET() {
     const availableOrders = await prisma.order.findMany({
       where: {
         riderId: null,
-        status: 'ACCEPTED',
+        status: { in: ['ACCEPTED', 'AWAITING_RIDER'] },
         paymentStatus: 'PAID',
       },
       include: {
-        customer: { select: { name: true, phone: true } },
         zone: true,
       },
       orderBy: { createdAt: 'asc' },
       take: 10,
     });
 
+    const totalAssigned = await prisma.order.count({
+      where: { riderId: session.user.id, status: { in: ['DELIVERED', 'CANCELLED', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'] } },
+    });
+    const completedOrders = await prisma.order.count({
+      where: { riderId: session.user.id, status: 'DELIVERED' },
+    });
+    const completionRate = totalAssigned > 0 ? Math.round((completedOrders / totalAssigned) * 100) : 0;
+
     return NextResponse.json({
       riderDetail,
       activeOrder,
       orders,
       availableOrders,
+      completionRate,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -97,7 +110,7 @@ export async function PATCH(request: Request) {
     if (isOnline !== undefined) {
       const now = new Date();
       const rider = await prisma.riderDetail.findUnique({ where: { id: session.user.id } });
-      const resetData: any = {};
+      const resetData: Record<string, unknown> = {};
       if (rider && !isSameDay(rider.earningsResetAt, now)) {
         resetData.todayEarnings = 0;
         resetData.earningsResetAt = now;
@@ -154,10 +167,11 @@ export async function PATCH(request: Request) {
       const isOtpExpired = order.otpGeneratedAt && (Date.now() - new Date(order.otpGeneratedAt).getTime()) > OTP_EXPIRY_MINUTES * 60 * 1000;
       if (isOtpExpired && !order.otpLockedUntil) {
         const newOtp = String(Math.floor(1000 + Math.random() * 9000));
+        const newOtpHash = await hashOtp(newOtp);
         await prisma.order.update({
           where: { id: orderId },
           data: {
-            deliveryOtp: newOtp,
+            deliveryOtp: newOtpHash,
             otpGeneratedAt: new Date(),
             otpAttempts: 0,
             otpLockedUntil: null,
@@ -195,7 +209,8 @@ export async function PATCH(request: Request) {
         );
       }
 
-      if (deliveryOtp !== order.deliveryOtp) {
+      const otpValid = await verifyOtp(deliveryOtp, order.deliveryOtp || '');
+      if (!otpValid) {
         const newAttempts = (order.otpAttempts || 0) + 1;
         const lockUntil = newAttempts >= MAX_OTP_ATTEMPTS
           ? new Date(Date.now() + OTP_LOCKOUT_MINUTES * 60 * 1000)
@@ -230,10 +245,11 @@ export async function PATCH(request: Request) {
 
       if (status === 'IN_TRANSIT') {
         const otp = String(Math.floor(1000 + Math.random() * 9000));
+        const otpHash = await hashOtp(otp);
         await tx.order.update({
           where: { id: orderId },
           data: {
-            deliveryOtp: otp,
+            deliveryOtp: otpHash,
             otpGeneratedAt: now,
             otpAttempts: 0,
             otpLockedUntil: null,
@@ -268,7 +284,7 @@ export async function PATCH(request: Request) {
       });
 
       if (status === 'DELIVERED') {
-        const riderUpdateData: any = {
+        const riderUpdateData: Record<string, unknown> = {
           currentOrderId: null,
           totalTrips: { increment: 1 },
         };
@@ -360,7 +376,7 @@ export async function PATCH(request: Request) {
     });
 
     return NextResponse.json({ success: true, order: result });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

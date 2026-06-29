@@ -1,14 +1,26 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { sendWelcomeEmail } from '@/lib/email';
+import { sendVerificationEmail } from '@/lib/email';
+import { rateLimit } from '@/lib/rate-limit';
+
+const ALLOWED_SIGNUP_ROLES = ['CUSTOMER', 'RIDER'];
 
 export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+  const rl = rateLimit(`signup:${ip}`, { windowMs: 60_000, max: 5 });
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many signup attempts. Try again later.' }, { status: 429 });
+  }
+
   try {
     const body = await request.json();
     const { name, phone, email, password, role, licenseNumber, plateNumber } = body;
     if (!name || !phone || !email || !password || !role) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+    if (!ALLOWED_SIGNUP_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Invalid role for signup' }, { status: 400 });
     }
     if (password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
@@ -40,12 +52,12 @@ export async function POST(request: Request) {
       });
     }
 
-    sendWelcomeEmail(email, name, role).catch(err => {
-      console.error('Welcome email failed:', err);
+    sendVerificationEmail(email, name).catch(err => {
+      console.error('Verification email failed:', err);
     });
 
     return NextResponse.json({ success: true, message: 'Account created successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Signup Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

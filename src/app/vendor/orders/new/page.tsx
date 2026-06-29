@@ -24,6 +24,7 @@ export default function NewOrderPage() {
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [urgency, setUrgency] = useState('NORMAL');
   const [zoneId, setZoneId] = useState('');
+  const [weightKg, setWeightKg] = useState('');
 
   useEffect(() => {
     async function fetchZones() {
@@ -40,6 +41,19 @@ export default function NewOrderPage() {
   }, []);
 
   const selectedZone = zones.find(z => z.id === zoneId);
+
+  const getWeightSurcharge = (w: number) => {
+    if (w <= 0) return 0;
+    if (w > 100) return 0;
+    if (w > 50) return 500;
+    if (w > 20) return 250;
+    if (w > 5) return 100;
+    return 0;
+  };
+
+  const weightNum = weightKg ? parseFloat(weightKg) : 0;
+  const surcharge = getWeightSurcharge(weightNum);
+  const totalPrice = (selectedZone?.price || 0) + surcharge;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +72,7 @@ export default function NewOrderPage() {
           specialInstructions: specialInstructions || undefined,
           urgency,
           zoneId,
+          weightKg: weightKg || undefined,
         }),
       });
 
@@ -195,10 +210,27 @@ export default function NewOrderPage() {
           </select>
         </div>
 
+        <div>
+          <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Weight (kg) — optional</label>
+          <input
+            type="number"
+            step="0.5"
+            min="0"
+            value={weightKg}
+            onChange={e => setWeightKg(e.target.value)}
+            className="w-full bg-midnight-800 border border-midnight-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-gold-500 transition-colors"
+            placeholder="e.g. 25"
+          />
+          {weightNum > 5 && (
+            <p className="text-yellow-400 text-[10px] mt-1">+KSh {surcharge} weight surcharge ({weightNum > 100 ? 'custom quote' : `${weightNum}kg`})</p>
+          )}
+        </div>
+
         {selectedZone && (
           <div className="bg-midnight-800 border border-gold-500/30 rounded-xl p-4 text-center">
             <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-1">Delivery Price</p>
-            <p className="text-gold-500 font-bold text-xl">KSh {selectedZone.price}</p>
+            <p className="text-gold-500 font-bold text-xl">KSh {totalPrice}</p>
+            {surcharge > 0 && <p className="text-[10px] text-gray-500 mt-1">Zone KSh {selectedZone.price} + Weight KSh {surcharge}</p>}
           </div>
         )}
 

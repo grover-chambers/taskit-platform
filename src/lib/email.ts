@@ -52,6 +52,20 @@ export function verifyResetToken(token: string): { email: string } | null {
   }
 }
 
+export function generateEmailVerifyToken(email: string): string {
+  return jwt.sign({ email, purpose: 'email_verify' }, NEXTAUTH_SECRET, { expiresIn: '24h' });
+}
+
+export function verifyEmailVerifyToken(token: string): { email: string } | null {
+  try {
+    const payload = jwt.verify(token, NEXTAUTH_SECRET) as any;
+    if (payload.purpose !== 'email_verify') return null;
+    return { email: payload.email };
+  } catch {
+    return null;
+  }
+}
+
 export async function sendWelcomeEmail(to: string, name: string, role: string) {
   const roleLabel = role === 'RIDER' ? 'Rider' : role === 'VENDOR' ? 'Vendor' : 'Customer';
   const roleColor = role === 'RIDER' ? '#3b82f6' : role === 'VENDOR' ? '#8b5cf6' : '#D4A017';
@@ -166,5 +180,32 @@ export async function sendSupportAlertEmail(ticketId: string, subject: string, p
     to: ADMIN_EMAIL,
     subject: `[TaskIt] ${priority} — ${subject}`,
     html: baseHtml(html, `Support ticket: ${subject}`),
+  });
+}
+
+export async function sendVerificationEmail(to: string, name: string) {
+  const token = generateEmailVerifyToken(to);
+  const verifyLink = `${APP_URL}/auth/verify-email?token=${token}`;
+
+  const body = `
+<div style="text-align:center;margin-bottom:24px">
+<div style="width:56px;height:56px;border-radius:50%;background:#D4A01720;margin:0 auto 16px;display:flex;align-items:center;justify-content:center">
+<span style="font-size:24px">✉️</span>
+</div>
+<h2 style="margin:0 0 8px;font-size:20px;color:#fff;font-weight:700">Verify Your Email</h2>
+<p style="margin:0;font-size:14px;color:#9ca3af">Hi ${name}, confirm your email to activate your account</p>
+</div>
+<div style="text-align:center;margin-bottom:24px">
+<a href="${verifyLink}" style="display:inline-block;background:#D4A017;color:#0a0a18;font-weight:700;font-size:14px;padding:14px 32px;border-radius:12px;text-decoration:none">Verify Email</a>
+</div>
+<div style="background:#0a0a18;border-radius:12px;padding:16px">
+<p style="margin:0;font-size:12px;color:#6b7280">This link expires in <strong style="color:#D4A017">24 hours</strong>. If you didn't create this account, you can safely ignore this email.</p>
+</div>`;
+
+  await transporter.sendMail({
+    from: `"TaskIt" <${GMAIL_USER}>`,
+    to,
+    subject: 'Verify your TaskIt email',
+    html: baseHtml(body, 'Verify your TaskIt email'),
   });
 }

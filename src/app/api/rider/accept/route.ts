@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -27,24 +28,21 @@ export async function POST(request: Request) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({ where: { id: orderId } });
-      if (!order) throw new Error('Order not found');
-      if (order.riderId) throw new Error('Order already assigned to another rider');
-      if (!['RECEIVED', 'ACCEPTED'].includes(order.status)) {
-        throw new Error(`Order status ${order.status} cannot be accepted`);
-      }
-      if (order.paymentStatus !== 'PAID') {
-        throw new Error('Order payment not confirmed');
+      const updateResult = await tx.$executeRaw`
+        UPDATE orders
+        SET "riderId" = ${session.user.id}, status = 'ASSIGNED', "assignedAt" = NOW()
+        WHERE id = ${orderId}::text
+          AND "riderId" IS NULL
+          AND status IN ('RECEIVED', 'ACCEPTED', 'AWAITING_RIDER')
+          AND "paymentStatus" = 'PAID'
+      `;
+
+      if (updateResult === 0) {
+        throw new Error('Order not available for acceptance');
       }
 
-      const updatedOrder = await tx.order.update({
-        where: { id: orderId },
-        data: {
-          riderId: session.user.id,
-          status: 'ASSIGNED',
-          assignedAt: new Date(),
-        },
-      });
+      const order = await tx.order.findUnique({ where: { id: orderId } });
+      if (!order) throw new Error('Order not found');
 
       await tx.orderStatus.create({
         data: {
@@ -59,7 +57,7 @@ export async function POST(request: Request) {
         data: { currentOrderId: orderId },
       });
 
-      const customer = await tx.user.findUnique({ where: { id: order.customerId } });
+      const customer = await tx.user.findUnique({ where: { id: order!.customerId } });
       if (customer) {
         await tx.notification.create({
           data: {
@@ -71,13 +69,25 @@ export async function POST(request: Request) {
         });
       }
 
-      return updatedOrder;
+      await tx.notification.create({
+        data: {
+          userId: session.user.id,
+          title: 'New Job Assigned',
+          body: `You accepted order #${orderId.slice(-7).toUpperCase()}`,
+          type: 'ORDER',
+        },
+      });
+
+      return order;
     });
 
     return NextResponse.json({ success: true, order: result });
-  } catch (error: any) {
-    const status = error.message.includes('already') || error.message.includes('not') || error.message.includes('payment')
-      ? 409 : 500;
-    return NextResponse.json({ error: error.message }, { status });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    const isConflict = message.includes('not available') || message.includes('already') || message.includes('payment');
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Internal server error' }, { status: isConflict ? 409 : 500 });
+    }
+    return NextResponse.json({ error: message }, { status: isConflict ? 409 : 500 });
   }
 }

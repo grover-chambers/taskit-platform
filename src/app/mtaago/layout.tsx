@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { EnterpriseContext } from './EnterpriseContext';
 
 export default function MtaagoLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [subRole, setSubRole] = useState<'OWNER' | 'OPERATOR' | null>(null);
   const [enterprise, setEnterprise] = useState<{ id: string; name: string; rate: number; active: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
 
   const fetchMe = useCallback(async () => {
     try {
@@ -17,12 +19,27 @@ export default function MtaagoLayout({ children }: { children: React.ReactNode }
         const data = await res.json();
         setSubRole(data.subRole);
         setEnterprise(data.enterprise);
+        setAuthorized(true);
+      } else {
+        router.replace('/auth/login');
       }
-    } catch {}
+    } catch {
+      router.replace('/auth/login');
+    }
     setLoading(false);
-  }, []);
+  }, [router]);
 
   useEffect(() => { fetchMe(); }, [fetchMe]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-midnight-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-haraka-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!authorized) return null;
 
   return (
     <EnterpriseContext.Provider value={{ subRole, enterprise, loading }}>

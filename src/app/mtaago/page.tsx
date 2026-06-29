@@ -473,7 +473,7 @@ export default function MtaagoCommandCenter() {
             const statusColor = STATUS_COLORS[order.status] || 'bg-gray-500/15 text-gray-400';
             const showOtp = order.deliveryOtp && ['ASSIGNED', 'IN_TRANSIT', 'PICKED_UP'].includes(order.status);
             const whatsappUrl = order.contactPhone
-              ? `https://wa.me/254${order.contactPhone.replace(/^0/, '')}?text=${encodeURIComponent('Haraka: OTP ' + order.deliveryOtp + ' — Track: ' + `${window.location.origin}/track/${order.id}`)}`
+              ? `https://wa.me/254${order.contactPhone.replace(/^0/, '')}?text=${encodeURIComponent('Haraka — Track: ' + `${window.location.origin}/track/${order.id}`)}`
               : null;
 
             return (

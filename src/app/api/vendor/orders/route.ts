@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizedErrorResponse } from '@/lib/api-error';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -10,13 +11,16 @@ export async function GET(req: Request) {
   }
 
   try {
-    const client = await prisma.enterpriseClient.findFirst({
-      where: { ownerId: session.user.id },
+    const membership = await prisma.enterpriseUser.findFirst({
+      where: { userId: session.user.id, active: true },
+      include: { enterpriseClient: true },
     });
 
-    if (!client) {
-      return NextResponse.json({ error: 'Enterprise client not found' }, { status: 404 });
+    if (!membership || !membership.enterpriseClient) {
+      return NextResponse.json({ error: 'Not an enterprise member' }, { status: 403 });
     }
+
+    const client = membership.enterpriseClient;
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
@@ -48,8 +52,8 @@ export async function GET(req: Request) {
       total,
       totalPages: Math.ceil(total / limit),
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }
 
@@ -60,20 +64,37 @@ export async function POST(req: Request) {
   }
 
   try {
-    const client = await prisma.enterpriseClient.findFirst({
-      where: { ownerId: session.user.id },
+    const membership = await prisma.enterpriseUser.findFirst({
+      where: { userId: session.user.id, active: true },
+      include: { enterpriseClient: true },
     });
 
-    if (!client) {
-      return NextResponse.json({ error: 'Enterprise client not found' }, { status: 404 });
+    if (!membership || !membership.enterpriseClient) {
+      return NextResponse.json({ error: 'Not an enterprise member' }, { status: 403 });
     }
 
+    const client = membership.enterpriseClient;
+
     const body = await req.json();
-    const { errandDescription, pickupLocation, dropoffLocation, contactPhone, specialInstructions, urgency, zoneId } = body;
+    const { errandDescription, pickupLocation, dropoffLocation, contactPhone, specialInstructions, urgency, zoneId, weightKg } = body;
 
     if (!errandDescription || !pickupLocation || !dropoffLocation || !contactPhone || !zoneId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+    if (!zone) {
+      return NextResponse.json({ error: 'Zone not found' }, { status: 400 });
+    }
+
+    let weightSurcharge = 0;
+    const w = weightKg ? Number(weightKg) : 0;
+    if (w > 100) weightSurcharge = 0;
+    else if (w > 50) weightSurcharge = 500;
+    else if (w > 20) weightSurcharge = 250;
+    else if (w > 5) weightSurcharge = 100;
+
+    const totalAmount = zone.price + weightSurcharge;
 
     const order = await prisma.order.create({
       data: {
@@ -90,7 +111,9 @@ export async function POST(req: Request) {
         paymentStatus: 'PAID',
         status: 'ACCEPTED',
         paymentMethod: 'INVOICE',
-        totalAmount: client.rate,
+        totalAmount,
+        weightKg: weightKg ? Number(weightKg) : null,
+        weightSurcharge,
       },
     });
 
@@ -103,7 +126,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, order }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return sanitizedErrorResponse(error);
   }
 }

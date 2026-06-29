@@ -1,9 +1,45 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user?.role === 'VENDOR') {
+            setAuthorized(true);
+          } else {
+            router.replace('/auth/login');
+          }
+        } else {
+          router.replace('/auth/login');
+        }
+      } catch {
+        router.replace('/auth/login');
+      }
+      setChecking(false);
+    })();
+  }, [router]);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-midnight-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!authorized) return null;
+
   return (
     <div className="min-h-screen bg-midnight-950 antialiased flex flex-col relative">
       <div className="absolute inset-0 z-0">

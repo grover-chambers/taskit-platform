@@ -33,6 +33,8 @@ export default function RiderWallet() {
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unpaidEarnings, setUnpaidEarnings] = useState<any[]>([]);
+  const [requestingPayout, setRequestingPayout] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -47,10 +49,25 @@ export default function RiderWallet() {
       setAvailableBalance(earningsData.availableBalance || 0);
       setPendingBalance(earningsData.pendingBalance || 0);
       setOrders(statsData.orders || []);
+      const unpaid = (earningsData.earnings || []).filter((e: any) => e.payoutStatus === 'UNPAID' && !e.payoutId);
+      setUnpaidEarnings(unpaid);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="p-6 pt-4"><p className="text-gray-500 text-sm">Loading...</p></div>;
+
+  const handlePayoutRequest = async () => {
+    setRequestingPayout(true);
+    try {
+      const res = await fetch('/api/rider/payout-request', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setUnpaidEarnings([]);
+        setAvailableBalance(0);
+      }
+    } catch {}
+    setRequestingPayout(false);
+  };
 
   const activeOrders = orders.filter(o => !['DELIVERED', 'CANCELLED'].includes(o.status));
   const completedOrders = orders.filter(o => ['DELIVERED', 'CANCELLED'].includes(o.status));
@@ -60,12 +77,26 @@ export default function RiderWallet() {
       <h1 className="text-2xl font-serif font-bold text-white mb-4">Wallet</h1>
 
       <div className="bg-midnight-800 border border-midnight-700 p-6 rounded-2xl shadow-soft-dark mb-4">
-        <p className="text-gray-400 text-xs uppercase tracking-wider">Available Balance</p>
+        <p className="text-gray-400 text-xs uppercase tracking-wider">Total Earnings</p>
         <p className="text-4xl font-serif font-bold text-gold-500 mt-2">KSh {availableBalance.toLocaleString()}</p>
         {pendingBalance > 0 && (
           <p className="text-yellow-400/80 text-xs mt-2">KSh {pendingBalance.toLocaleString()} pending payout</p>
         )}
       </div>
+
+      {unpaidEarnings.length > 0 && (
+        <button
+          onClick={handlePayoutRequest}
+          disabled={requestingPayout}
+          className="w-full bg-gold-500 text-midnight-950 py-3.5 rounded-2xl font-bold mb-4 disabled:opacity-50 transition-all hover:bg-gold-400 active:scale-[0.98] flex justify-center items-center gap-2"
+        >
+          {requestingPayout ? (
+            <div className="w-5 h-5 border-2 border-midnight-950 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            'Request Payout'
+          )}
+        </button>
+      )}
 
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-midnight-800 border border-midnight-700 p-3 rounded-2xl shadow-soft-dark text-center">

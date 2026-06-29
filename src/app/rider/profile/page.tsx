@@ -22,6 +22,7 @@ export default function RiderProfile() {
   const [editPhone, setEditPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [totalEarnings, setTotalEarnings] = useState(0);
+  const [completionRate, setCompletionRate] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -47,6 +48,7 @@ export default function RiderProfile() {
         setEditPhone(rd.user?.phone || '');
       }
       setTotalEarnings(earningsData.totalEarnings || 0);
+      setCompletionRate(statsData.completionRate ?? 0);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -96,7 +98,6 @@ export default function RiderProfile() {
   const initial = riderName ? riderName.charAt(0).toUpperCase() : '?';
   const daysOnPlatform = getDaysOnPlatform();
   const avgDailyEarnings = daysOnPlatform > 0 ? Math.round(totalEarnings / daysOnPlatform) : 0;
-  const completionRate = totalTrips > 0 ? Math.round((totalTrips / (totalTrips + 0)) * 100) : 0;
 
   return (
     <div className="p-6 pt-4">

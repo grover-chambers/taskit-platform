@@ -3,7 +3,7 @@ import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 
 const ROLE_ROUTES: Record<string, string[]> = {
-  ADMIN: ['/admin'],
+  ADMIN: ['/admin', '/platform'],
   RIDER: ['/rider'],
   VENDOR: ['/vendor', '/mtaago'],
   CUSTOMER: ['/dashboard', '/book'],
@@ -49,5 +49,6 @@ export const config = {
     '/rider/:path*',
     '/vendor/:path*',
     '/mtaago/:path*',
+    '/platform/:path*',
   ],
 };

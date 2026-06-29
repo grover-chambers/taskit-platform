@@ -266,11 +266,8 @@ export default function LandingPage() {
             0707 075 630
           </a>
 
-          {/* Hidden links */}
           <p className="text-gray-700 text-xs mt-8">
-            &copy; <Link href="/admin/login" className="hover:text-gray-500 transition-colors">{new Date().getFullYear()}</Link> TaskIt by Squareroot INC. All rights reserved.
-            <span className="mx-2">·</span>
-            <Link href="/platform" className="hover:text-gray-500 transition-colors">Platform v2</Link>
+            &copy; {new Date().getFullYear()} TaskIt by Squareroot INC. All rights reserved.
           </p>
         </section>
 

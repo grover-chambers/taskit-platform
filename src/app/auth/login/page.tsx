@@ -50,7 +50,7 @@ function LoginContent() {
   const ROLE_REDIRECTS: Record<string, string> = {
     ADMIN: '/admin',
     RIDER: '/rider',
-    VENDOR: '/mtaago',
+    VENDOR: '/vendor',
     CUSTOMER: '/dashboard',
   };
 

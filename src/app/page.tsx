@@ -268,6 +268,7 @@ export default function LandingPage() {
 
           <p className="text-gray-700 text-xs mt-8">
             &copy; {new Date().getFullYear()} TaskIt by Squareroot INC. All rights reserved.
+            <Link href="/admin/login" className="hover:text-gray-500 transition-colors ml-2 opacity-30">Admin</Link>
           </p>
         </section>
 

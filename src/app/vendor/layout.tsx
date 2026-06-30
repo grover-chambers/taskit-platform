@@ -16,6 +16,11 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
         if (res.ok) {
           const data = await res.json();
           if (data?.user?.role === 'VENDOR') {
+            const meRes = await fetch('/api/enterprise/me');
+            if (meRes.ok) {
+              router.replace('/mtaago');
+              return;
+            }
             setAuthorized(true);
           } else {
             router.replace('/auth/login');

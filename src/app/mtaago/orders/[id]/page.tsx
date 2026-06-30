@@ -115,7 +115,7 @@ export default function MtaagoOrderDetailPage() {
 
   const fetchRiders = async () => {
     try {
-      const res = await fetch('/api/vendor/dispatch');
+      const res = await fetch('/api/enterprise/dispatch');
       if (res.ok) {
         const data = await res.json();
         setAvailableRiders(data.availableRiders || []);
@@ -172,7 +172,7 @@ export default function MtaagoOrderDetailPage() {
     setActionLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/vendor/dispatch', {
+      const res = await fetch('/api/enterprise/dispatch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, riderId }),

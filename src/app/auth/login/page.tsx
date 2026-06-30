@@ -5,12 +5,12 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const DEMO_ROLES = [
-  { role: 'admin', label: 'Admin', dashboard: '/admin', color: 'from-red-600 to-red-700' },
-  { role: 'customer', label: 'Customer', dashboard: '/dashboard', color: 'from-brand-500 to-yellow-600' },
-  { role: 'rider', label: 'Rider', dashboard: '/rider', color: 'from-blue-600 to-blue-700' },
-  { role: 'vendor', label: 'Vendor', dashboard: '/vendor', color: 'from-purple-600 to-purple-700' },
-  { role: 'boss', label: 'Boss', dashboard: '/mtaago', color: 'from-amber-600 to-amber-700' },
-  { role: 'operator', label: 'Operator', dashboard: '/mtaago', color: 'from-haraka-600 to-emerald-700' },
+  { role: 'admin', label: 'Admin', desc: 'Command Center', dashboard: '/admin', color: 'from-red-600 to-red-700' },
+  { role: 'customer', label: 'Customer', desc: 'Track & Order', dashboard: '/dashboard', color: 'from-brand-500 to-yellow-600' },
+  { role: 'rider', label: 'Rider', desc: 'Accept Jobs', dashboard: '/rider', color: 'from-blue-600 to-blue-700' },
+  { role: 'vendor', label: 'Vendor', desc: 'Marketplace', dashboard: '/vendor', color: 'from-purple-600 to-purple-700' },
+  { role: 'boss', label: 'Boss', desc: 'Enterprise Owner', dashboard: '/mtaago', color: 'from-amber-600 to-amber-700' },
+  { role: 'operator', label: 'Operator', desc: 'Dispatch Desk', dashboard: '/mtaago', color: 'from-haraka-600 to-emerald-700' },
 ];
 
 export default function LoginPage() {
@@ -182,6 +182,7 @@ function LoginContent() {
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <h1 className="text-3xl font-serif font-bold text-white">Welcome Back</h1>
         <p className="text-gray-400 mt-2">Sign in to your TaskIt account</p>
+        <p className="text-midnight-500 text-xs mt-1">Enter your email and password below</p>
 
         <form onSubmit={handleLogin} className="mt-8 space-y-4">
           {error && <div className="bg-red-900/30 text-red-400 text-sm text-center p-3 rounded-lg">{error}</div>}
@@ -230,9 +231,10 @@ function LoginContent() {
                 key={acc.role}
                 onClick={() => handleDemoLogin(acc)}
                 disabled={demoLoading === acc.role}
-                className={`bg-gradient-to-r ${acc.color} text-white py-3 px-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 text-sm`}
+                className={`bg-gradient-to-r ${acc.color} text-white py-2 px-3 rounded-2xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 text-left`}
               >
-                {demoLoading === acc.role ? 'Loading...' : acc.label}
+                <div className="text-sm">{demoLoading === acc.role ? 'Loading...' : acc.label}</div>
+                <div className="text-[9px] opacity-80 font-medium">{acc.desc}</div>
               </button>
             ))}
           </div>
@@ -241,6 +243,13 @@ function LoginContent() {
         <p className="text-center text-gray-500 text-sm mt-6">
           Don't have an account? <Link href="/auth/signup" className="text-brand-500 font-semibold hover:underline">Sign Up</Link>
         </p>
+
+        <div className="mt-4 text-center">
+          <Link href="/mtaago/login" className="text-haraka-500 text-sm font-semibold hover:underline inline-flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            Mtaago Enterprise? Login here
+          </Link>
+        </div>
       </div>
     </div>
   );

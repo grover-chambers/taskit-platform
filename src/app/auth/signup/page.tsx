@@ -85,7 +85,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-gray-400 block mb-2">Email</label>
+            <label className="text-sm font-semibold text-gray-400 block mb-2">Email (required)</label>
             <input name="email" type="email" value={formData.email} onChange={handleChange} required className="w-full bg-midnight-800 border border-midnight-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-brand-500 transition-colors placeholder:text-midnight-600" placeholder="you@email.com" />
           </div>
 

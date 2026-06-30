@@ -46,6 +46,7 @@ export default function AdminLogin() {
             </div>
             <h1 className="text-2xl font-serif font-bold text-white">Admin Console</h1>
             <p className="text-gray-400 text-sm mt-1">Restricted Access</p>
+            <p className="text-midnight-500 text-xs mt-1">Authorized personnel only. All access is logged.</p>
           </div>
 
           <form onSubmit={handleAdminLogin} className="bg-midnight-800/80 backdrop-blur-md p-6 rounded-2xl border border-midnight-700 shadow-soft-dark space-y-4">

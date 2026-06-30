@@ -19,6 +19,10 @@ export async function POST(request: Request) {
     if (!name || !phone || !email || !password || !role) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
+    }
     if (!ALLOWED_SIGNUP_ROLES.includes(role)) {
       return NextResponse.json({ error: 'Invalid role for signup' }, { status: 400 });
     }

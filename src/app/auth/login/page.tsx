@@ -59,6 +59,10 @@ function LoginContent() {
       const res = await fetch('/api/auth/session');
       const data = await res.json();
       const role = data?.user?.role;
+      if (role === 'VENDOR') {
+        const meRes = await fetch('/api/enterprise/me');
+        if (meRes.ok) return '/mtaago';
+      }
       return ROLE_REDIRECTS[role] || '/dashboard';
     } catch {
       return '/dashboard';

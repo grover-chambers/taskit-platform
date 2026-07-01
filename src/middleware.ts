@@ -59,6 +59,7 @@ export const config = {
     '/book/:path*',
     '/rider/:path*',
     '/vendor/:path*',
+    '/mtaago',
     '/mtaago/:path*',
     '/platform/:path*',
   ],

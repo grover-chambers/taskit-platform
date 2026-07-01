@@ -61,8 +61,13 @@ export default function MtaagoLoginPage() {
       if (signInRes?.error) {
         setError('Demo login failed — run seed first');
       } else {
-        router.push('/mtaago');
-        router.refresh();
+        const meRes = await fetch('/api/enterprise/me');
+        if (meRes.ok) {
+          router.push('/mtaago');
+          router.refresh();
+        } else {
+          setError('This account does not have enterprise access.');
+        }
       }
     } catch {
       setError('Demo login failed');

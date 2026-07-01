@@ -4,13 +4,10 @@ import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-const DEMO_ROLES = [
-  { role: 'admin', label: 'Admin', desc: 'Command Center', dashboard: '/admin', color: 'from-red-600 to-red-700' },
-  { role: 'customer', label: 'Customer', desc: 'Track & Order', dashboard: '/dashboard', color: 'from-brand-500 to-yellow-600' },
-  { role: 'rider', label: 'Rider', desc: 'Accept Jobs', dashboard: '/rider', color: 'from-blue-600 to-blue-700' },
-  { role: 'vendor', label: 'Vendor', desc: 'Marketplace', dashboard: '/vendor', color: 'from-purple-600 to-purple-700' },
-  { role: 'boss', label: 'Boss', desc: 'Enterprise Owner', dashboard: '/mtaago', color: 'from-amber-600 to-amber-700' },
-  { role: 'operator', label: 'Operator', desc: 'Dispatch Desk', dashboard: '/mtaago', color: 'from-haraka-600 to-emerald-700' },
+const DEMO_ACCOUNTS = [
+  { role: 'admin', label: 'Admin', desc: 'Command Center', email: 'admin@taskit.co.ke', password: 'MunyagaMartin.12', redirect: '/admin', color: 'from-red-600 to-red-700' },
+  { role: 'customer', label: 'Customer', desc: 'Track & Order', email: 'wanjiru@email.com', password: 'customer123', redirect: '/dashboard', color: 'from-brand-500 to-yellow-600' },
+  { role: 'rider', label: 'Rider', desc: 'Accept Jobs', email: 'peter.m@taskit.co.ke', password: 'rider123', redirect: '/rider', color: 'from-blue-600 to-blue-700' },
 ];
 
 export default function LoginPage() {
@@ -99,27 +96,15 @@ function LoginContent() {
     }
   };
 
-  const handleDemoLogin = async (acc: typeof DEMO_ROLES[0]) => {
+  const handleDemoLogin = async (acc: typeof DEMO_ACCOUNTS[0]) => {
     setDemoLoading(acc.role);
     setError('');
     try {
-      const res = await fetch('/api/auth/demo-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: acc.role }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        setError(data.error || 'Demo login failed — run seed first');
-        setDemoLoading(null);
-        return;
-      }
-      const signInRes = await signIn('credentials', { email: data.email, password: data.password, redirect: false });
+      const signInRes = await signIn('credentials', { email: acc.email, password: acc.password, redirect: false });
       if (signInRes?.error) {
         setError('Demo login failed — run seed first');
       } else {
-        const redirect = await getRedirectPath();
-        router.push(redirect);
+        router.push(acc.redirect);
         router.refresh();
       }
     } catch {
@@ -229,8 +214,8 @@ function LoginContent() {
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-midnight-700" /></div>
             <div className="relative flex justify-center"><span className="bg-midnight-900 px-4 text-sm text-gray-500">Demo Quick Login</span></div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {DEMO_ROLES.map(acc => (
+          <div className="grid grid-cols-3 gap-3">
+            {DEMO_ACCOUNTS.map(acc => (
               <button
                 key={acc.role}
                 onClick={() => handleDemoLogin(acc)}

@@ -13,6 +13,10 @@ export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   const { pathname } = request.nextUrl;
 
+  if (pathname.startsWith('/mtaago/login')) {
+    return NextResponse.next();
+  }
+
   if (!token) {
     const signInUrl = new URL('/auth/login', request.url);
     signInUrl.searchParams.set('callbackUrl', pathname);
@@ -20,10 +24,6 @@ export async function middleware(request: NextRequest) {
   }
 
   const role = token.role as string;
-
-  if (pathname.startsWith('/mtaago/login')) {
-    return NextResponse.next();
-  }
 
   if (pathname.startsWith('/mtaago')) {
     if (role !== 'VENDOR') {

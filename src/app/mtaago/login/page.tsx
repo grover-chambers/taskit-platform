@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 
 const DEMO_ACCOUNTS = [
-  { role: 'boss', label: 'Owner', email: 'kanini.boss@taskit.co.ke', password: 'boss123', color: 'from-amber-500 to-amber-600' },
-  { role: 'operator', label: 'Operator', email: 'kanini.desk@taskit.co.ke', password: 'desk123', color: 'from-haraka-600 to-haraka-700' },
+  { role: 'boss', label: 'Owner', desc: 'Enterprise Owner', email: 'kanini.boss@taskit.co.ke', password: 'boss123', color: 'from-amber-500 to-amber-600' },
+  { role: 'operator', label: 'Operator', desc: 'Dispatch Desk', email: 'kanini.desk@taskit.co.ke', password: 'desk123', color: 'from-haraka-600 to-haraka-700' },
 ];
 
 export default function MtaagoLoginPage() {
@@ -19,37 +19,42 @@ export default function MtaagoLoginPage() {
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
 
+  const loginAndCheck = async (email: string, password: string) => {
+    const signInRes = await signIn('credentials', { email, password, redirect: false });
+    if (signInRes?.error) throw new Error('Invalid email or password');
+    const meRes = await fetch('/api/enterprise/me');
+    if (!meRes.ok) throw new Error('This account does not have enterprise access. Use the main login for marketplace vendors.');
+    router.push('/mtaago');
+    router.refresh();
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res = await signIn('credentials', { email, password, redirect: false });
+      await loginAndCheck(email, password);
+    } catch (err) {
       setLoading(false);
-      if (res?.error) {
-        try {
-          const lockoutRes = await fetch(`/api/auth/check-lockout?email=${encodeURIComponent(email)}`);
-          const lockout = await lockoutRes.json();
-          if (lockout.locked) {
-            setError('Account temporarily locked. Please try again in 15 minutes.');
-          } else {
+      if (err instanceof Error) {
+        if (err.message.includes('enterprise')) {
+          setError(err.message);
+        } else {
+          try {
+            const lockoutRes = await fetch(`/api/auth/check-lockout?email=${encodeURIComponent(email)}`);
+            const lockout = await lockoutRes.json();
+            if (lockout.locked) {
+              setError('Account temporarily locked. Please try again in 15 minutes.');
+            } else {
+              setError('Invalid email or password');
+            }
+          } catch {
             setError('Invalid email or password');
           }
-        } catch {
-          setError('Invalid email or password');
         }
       } else {
-        const meRes = await fetch('/api/enterprise/me');
-        if (meRes.ok) {
-          router.push('/mtaago');
-          router.refresh();
-        } else {
-          setError('This account does not have enterprise access. Use the main login for marketplace vendors.');
-        }
+        setError('An unexpected error occurred.');
       }
-    } catch {
-      setLoading(false);
-      setError('An unexpected error occurred.');
     }
   };
 
@@ -57,20 +62,13 @@ export default function MtaagoLoginPage() {
     setDemoLoading(acc.role);
     setError('');
     try {
-      const signInRes = await signIn('credentials', { email: acc.email, password: acc.password, redirect: false });
-      if (signInRes?.error) {
-        setError('Demo login failed — run seed first');
+      await loginAndCheck(acc.email, acc.password);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message.includes('enterprise') ? err.message : 'Demo login failed — run seed first');
       } else {
-        const meRes = await fetch('/api/enterprise/me');
-        if (meRes.ok) {
-          router.push('/mtaago');
-          router.refresh();
-        } else {
-          setError('This account does not have enterprise access.');
-        }
+        setError('Demo login failed');
       }
-    } catch {
-      setError('Demo login failed');
     }
     setDemoLoading(null);
   };
@@ -155,9 +153,10 @@ export default function MtaagoLoginPage() {
                   key={acc.role}
                   onClick={() => handleDemoLogin(acc)}
                   disabled={demoLoading === acc.role}
-                  className={`bg-gradient-to-r ${acc.color} text-white py-3 px-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 text-sm`}
+                  className={`bg-gradient-to-r ${acc.color} text-white py-2 px-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 text-left`}
                 >
-                  {demoLoading === acc.role ? 'Loading...' : acc.label}
+                  <div className="text-sm">{demoLoading === acc.role ? 'Loading...' : acc.label}</div>
+                  <div className="text-[9px] opacity-80 font-medium">{acc.desc}</div>
                 </button>
               ))}
             </div>

@@ -10,7 +10,7 @@ const DEMO_ACCOUNTS = [
   { role: 'operator', label: 'Operator', desc: 'Dispatch Desk', email: 'kanini.desk@taskit.co.ke', password: 'desk123', color: 'from-haraka-600 to-haraka-700' },
 ];
 
-export default function MtaagoLoginPage() {
+export default function MtaaGoLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,8 +19,8 @@ export default function MtaagoLoginPage() {
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
 
-  const loginAndCheck = async (email: string, password: string) => {
-    const signInRes = await signIn('credentials', { email, password, redirect: false });
+  const loginAndCheck = async (loginEmail: string, loginPassword: string) => {
+    const signInRes = await signIn('credentials', { email: loginEmail, password: loginPassword, redirect: false });
     if (signInRes?.error) throw new Error('Invalid email or password');
     const meRes = await fetch('/api/enterprise/me');
     if (!meRes.ok) throw new Error('This account does not have enterprise access. Use the main login for marketplace vendors.');
@@ -96,7 +96,7 @@ export default function MtaagoLoginPage() {
               </svg>
             </div>
             <h1 className="text-3xl font-serif font-bold text-white">
-              <span className="text-haraka-400">Mtaago</span> Enterprise
+              <span className="text-haraka-400">mtaa</span><span className="text-amber-400">Go</span> Enterprise
             </h1>
             <p className="text-gray-400 mt-2 text-sm">Enterprise dispatch & logistics management</p>
           </div>
@@ -163,7 +163,10 @@ export default function MtaagoLoginPage() {
           </div>
 
           <p className="text-center text-gray-500 text-sm mt-6">
-            Marketplace vendor? <Link href="/auth/login" className="text-haraka-500 font-semibold hover:underline">Login here</Link>
+            Marketplace vendor?{' '}
+            <Link href="/auth/login" className="text-haraka-500 font-semibold hover:underline">
+              Login here
+            </Link>
           </p>
         </div>
       </div>

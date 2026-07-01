@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { signOut } from 'next-auth/react';
 import { useEnterprise } from '../EnterpriseContext';
 
 interface AuditLogEntry {
@@ -14,11 +15,10 @@ interface AuditLogEntry {
   user: { name: string | null; email: string };
 }
 
-export default function MtaagoSettingsPage() {
+export default function MtaaGoSettingsPage() {
   const { subRole, enterprise, loading: roleLoading } = useEnterprise();
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showApi, setShowApi] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   const fetchAuditLogs = useCallback(async () => {
@@ -40,25 +40,25 @@ export default function MtaagoSettingsPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const isOwner = subRole === 'OWNER';
+
   if (roleLoading || loading) {
     return (
-      <div className="px-6 pt-6 pb-24">
-        <div className="flex items-center justify-center py-12">
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
-            <p className="text-gray-500 text-xs">Loading...</p>
-          </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
+          <p className="text-gray-500 text-xs">Loading...</p>
         </div>
       </div>
     );
   }
 
-  const isOwner = subRole === 'OWNER';
-
   return (
-    <div className="px-6 pt-6 pb-24 space-y-4">
-      <h1 className="text-white font-bold text-lg mb-1">Settings</h1>
-      <p className="text-gray-500 text-[10px] uppercase tracking-wider font-bold">Enterprise Profile</p>
+    <div className={isOwner ? 'space-y-6' : 'px-6 pt-6 pb-24 space-y-4'}>
+      <div>
+        <h1 className="text-white font-bold text-xl">Settings</h1>
+        <p className="text-gray-500 text-xs mt-0.5">Enterprise Profile</p>
+      </div>
 
       <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-4">
@@ -74,7 +74,7 @@ export default function MtaagoSettingsPage() {
         </div>
       </div>
 
-      <div className="bg-midnight-800 border border-midnight-700 rounded-xl overflow-hidden">
+      <div className={isOwner ? 'bg-midnight-800 border border-midnight-700 rounded-xl overflow-hidden' : 'bg-midnight-800 border border-midnight-700 rounded-xl overflow-hidden'}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-midnight-700">
           <div>
             <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Rate per Delivery</p>
@@ -104,7 +104,7 @@ export default function MtaagoSettingsPage() {
           <div>
             <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Your Role</p>
             <p className={`font-bold text-sm ${isOwner ? 'text-amber-400' : 'text-haraka-500'}`}>
-              {subRole === 'OWNER' ? 'Owner (Watch + Intervene)' : 'Operator (Full Control)'}
+              {isOwner ? 'Owner (Watch + Intervene)' : 'Operator (Full Control)'}
             </p>
           </div>
         </div>
@@ -123,7 +123,6 @@ export default function MtaagoSettingsPage() {
         </div>
       </div>
 
-      {/* Audit Log — visible to both roles */}
       <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5 space-y-3">
         <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Recent Activity</p>
         {auditLogs.length === 0 ? (
@@ -144,64 +143,63 @@ export default function MtaagoSettingsPage() {
         )}
       </div>
 
-      <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5 space-y-3">
-        <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Quick Links</p>
-        <div className="space-y-2">
-          <Link
-            href="/mtaago/orders/new"
-            className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-sm">📦</span>
-              <span className="text-white text-sm font-semibold">Create New Order</span>
-            </div>
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </Link>
-          <Link
-            href="/mtaago/orders"
-            className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-sm">📋</span>
-              <span className="text-white text-sm font-semibold">All Orders</span>
-            </div>
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </Link>
-          <Link
-            href="/mtaago/riders"
-            className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-sm">🛵</span>
-              <span className="text-white text-sm font-semibold">Rider Board</span>
-            </div>
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </Link>
-          <Link
-            href="/mtaago/billing"
-            className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-sm">💰</span>
-              <span className="text-white text-sm font-semibold">Billing & Invoices</span>
-            </div>
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </Link>
+      {!isOwner && (
+        <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5 space-y-3">
+          <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Quick Links</p>
+          <div className="space-y-2">
+            <Link href="/mtaago/orders/new" className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                <span className="text-sm">📦</span>
+                <span className="text-white text-sm font-semibold">Create New Order</span>
+              </div>
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
+            <Link href="/mtaago/orders" className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                <span className="text-sm">📋</span>
+                <span className="text-white text-sm font-semibold">All Orders</span>
+              </div>
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
+            <Link href="/mtaago/riders" className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                <span className="text-sm">🛵</span>
+                <span className="text-white text-sm font-semibold">Rider Board</span>
+              </div>
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
+            <Link href="/mtaago/billing" className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                <span className="text-sm">💰</span>
+                <span className="text-white text-sm font-semibold">Billing & Invoices</span>
+              </div>
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-lg">ℹ️</span>
-          <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">About Mtaago</p>
+          <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">About mtaaGo</p>
         </div>
         <p className="text-gray-400 text-xs leading-relaxed">
-          Mtaago by TaskIt is the Haraka dispatch system for enterprise clients.
-          {subRole === 'OPERATOR'
-            ? ' Create orders, confirm payments, pack items, dispatch riders — all from your workspace.'
-            : ' Monitor all operations, intervene on delays, and keep things moving.'}
+          mtaaGo by TaskIt is the Haraka dispatch system for enterprise clients.
+          {isOwner
+            ? ' Monitor all operations, intervene on delays, and keep things moving.'
+            : ' Create orders, confirm payments, pack items, dispatch riders — all from your workspace.'}
         </p>
       </div>
+
+      {!isOwner && (
+        <button
+          onClick={() => signOut({ callbackUrl: '/mtaago/login' })}
+          className="w-full bg-red-500/10 border border-red-500/30 text-red-400 py-3 rounded-xl text-sm font-bold hover:bg-red-500/20 transition-colors"
+        >
+          Sign Out
+        </button>
+      )}
     </div>
   );
 }

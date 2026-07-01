@@ -66,7 +66,7 @@ export default function AdminEnterprisePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-serif font-bold text-white">Enterprise Clients</h1>
-          <p className="text-gray-400 text-sm mt-1">Manage Mtaago enterprise accounts & members</p>
+          <p className="text-gray-400 text-sm mt-1">Manage mtaaGo enterprise accounts & members</p>
         </div>
         <button onClick={() => setShowCreate(true)} className="bg-haraka-500 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-haraka-600 transition-colors">
           + New Enterprise

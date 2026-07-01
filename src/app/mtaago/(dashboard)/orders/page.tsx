@@ -57,7 +57,7 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function MtaagoOrdersPage() {
+export default function MtaaGoOrdersPage() {
   const { subRole, loading: roleLoading } = useEnterprise();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +85,7 @@ export default function MtaagoOrdersPage() {
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
+  const isOwner = subRole === 'OWNER';
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'ALL', label: 'All' },
     { key: 'QUEUE', label: 'Queue' },
@@ -93,10 +94,10 @@ export default function MtaagoOrdersPage() {
   ];
 
   return (
-    <div className="px-6 pt-6 pb-24">
+    <div className={isOwner ? '' : 'px-6 pt-6 pb-24'}>
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-white font-bold text-lg">Orders</h1>
-        {subRole === 'OPERATOR' && (
+        <h1 className="text-white font-bold text-xl">Orders</h1>
+        {!isOwner && (
           <Link
             href="/mtaago/orders/new"
             className="bg-haraka-500 text-midnight-950 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-haraka-400 transition-colors"
@@ -133,6 +134,39 @@ export default function MtaagoOrdersPage() {
           <p className="text-gray-400 text-sm">
             {tab === 'QUEUE' ? 'No orders in queue' : tab === 'ACTIVE' ? 'No active orders' : tab === 'DELIVERED' ? 'No delivered orders' : 'Orders will appear here'}
           </p>
+        </div>
+      ) : isOwner ? (
+        <div className="bg-midnight-800 border border-midnight-700 rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="text-gray-500 text-[9px] uppercase tracking-wider font-bold border-b border-midnight-700">
+                <th className="text-left px-5 py-2">Order</th>
+                <th className="text-left px-5 py-2">Description</th>
+                <th className="text-left px-5 py-2">Status</th>
+                <th className="text-left px-5 py-2">Rider</th>
+                <th className="text-right px-5 py-2">Amount</th>
+                <th className="text-right px-5 py-2">View</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-midnight-700">
+              {orders.map(order => (
+                <tr key={order.id} className="hover:bg-midnight-800/50">
+                  <td className="px-5 py-3 text-gray-400 text-xs font-mono">#{order.id.slice(-7).toUpperCase()}</td>
+                  <td className="px-5 py-3 text-white text-xs font-semibold truncate max-w-[200px]">{order.errandDescription}</td>
+                  <td className="px-5 py-3">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${STATUS_COLORS[order.status] || 'bg-gray-500/15 text-gray-400'}`}>
+                      {STATUS_LABELS[order.status] || order.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-gray-400 text-xs">{order.rider ? order.rider.name : '—'}</td>
+                  <td className="px-5 py-3 text-haraka-500 font-bold text-sm text-right">KSh {order.totalAmount.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-right">
+                    <Link href={`/mtaago/orders/${order.id}`} className="text-haraka-500 text-xs font-bold hover:underline">View</Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="space-y-3">

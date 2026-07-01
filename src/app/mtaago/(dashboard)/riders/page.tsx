@@ -43,7 +43,7 @@ const KYC_COLORS: Record<string, string> = {
   NOT_SUBMITTED: 'bg-gray-500/15 text-gray-400',
 };
 
-export default function MtaagoRidersPage() {
+export default function MtaaGoFleetPage() {
   const { subRole } = useEnterprise();
   const [riders, setRiders] = useState<RidersData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,105 +66,161 @@ export default function MtaagoRidersPage() {
     return () => clearInterval(interval);
   }, [fetchRiders]);
 
+  const isOwner = subRole === 'OWNER';
+
   if (loading) {
     return (
-      <div className="px-6 pt-6 pb-24">
-        <div className="flex items-center justify-center py-12">
-          <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
-        </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!riders) {
-    return (
-      <div className="px-6 pt-6 pb-24">
-        <div className="flex items-center justify-center py-12">
-          <p className="text-gray-500 text-sm">Unable to load riders</p>
-        </div>
-      </div>
-    );
+    return <div className="text-center py-12"><p className="text-gray-500 text-sm">Unable to load fleet</p></div>;
   }
 
-  const isOperator = subRole === 'OPERATOR';
   const availableOnline = riders.online.filter(r => !r.currentOrder);
 
   return (
-    <div className="px-6 pt-6 pb-24">
+    <div className={isOwner ? '' : 'px-6 pt-6 pb-24'}>
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-white font-bold text-lg">Rider Board</h1>
+        <h1 className="text-white font-bold text-xl">{isOwner ? 'Fleet' : 'Rider Board'}</h1>
         <div className="flex items-center gap-2">
           <span className="bg-green-500/15 text-green-400 text-[9px] font-bold px-2 py-0.5 rounded-md">{availableOnline.length} available</span>
           <span className="bg-midnight-800 text-gray-400 text-[9px] font-bold px-2 py-0.5 rounded-md">{riders.online.length} online</span>
         </div>
       </div>
 
-      {riders.online.length === 0 && riders.offline.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-4xl mb-3">🛵</div>
-          <h3 className="text-white font-bold text-base mb-1">No Riders</h3>
-          <p className="text-gray-400 text-sm">Riders will appear here when they join</p>
-        </div>
-      )}
-
-      {riders.online.length > 0 && (
-        <div className="mb-6">
-          <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-3">Online ({riders.online.length})</p>
-          <div className="space-y-3">
-            {riders.online.map(rider => {
+      {isOwner ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {riders.online.length > 0 && riders.online.map(rider => {
               const isBusy = !!rider.currentOrder;
               return (
-                <div key={rider.id} className="bg-midnight-800 border border-midnight-700 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${isBusy ? 'bg-amber-400' : 'bg-green-400'}`} />
-                    <div className="flex-1 min-w-0">
+                <div key={rider.id} className="bg-midnight-800 border border-midnight-700 rounded-xl p-4 flex items-start gap-3">
+                  <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${isBusy ? 'bg-amber-400' : 'bg-green-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
                       <p className="text-white text-sm font-semibold">{rider.name}</p>
-                      <p className="text-gray-400 text-xs">{rider.plateNumber} · ⭐ {rider.rating.toFixed(1)} · {rider.totalTrips} trips · KSh {rider.todayEarnings} today</p>
-                      {isBusy ? (
-                        <div className="mt-2 flex items-center gap-2">
-                          <p className="text-gray-300 text-xs truncate flex-1">{rider.currentOrder!.errandDescription}</p>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex-shrink-0 ${STATUS_COLORS[rider.currentOrder!.status] || 'bg-gray-500/15 text-gray-400'}`}>
-                            {rider.currentOrder!.status.replace(/_/g, ' ')}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md bg-green-500/15 text-green-400">Available</span>
-                      )}
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${isBusy ? 'bg-amber-500/15 text-amber-400' : 'bg-green-500/15 text-green-400'}`}>
+                        {isBusy ? 'Dispatched' : 'Available'}
+                      </span>
                     </div>
+                    <p className="text-gray-400 text-xs">{rider.plateNumber} · ⭐ {rider.rating.toFixed(1)} · {rider.totalTrips} trips · KSh {rider.todayEarnings} today</p>
+                    {isBusy && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <p className="text-gray-300 text-xs truncate flex-1">{rider.currentOrder!.errandDescription}</p>
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md flex-shrink-0 ${STATUS_COLORS[rider.currentOrder!.status] || 'bg-gray-500/15 text-gray-400'}`}>
+                          {rider.currentOrder!.status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
 
-      {riders.offline.length > 0 && (
-        <div>
-          <button
-            onClick={() => setShowOffline(!showOffline)}
-            className="text-gray-400 text-xs font-semibold mb-3 hover:text-gray-300 transition-colors"
-          >
-            {showOffline ? 'Hide' : 'Show'} offline riders ({riders.offline.length})
-          </button>
-          {showOffline && (
-            <div className="space-y-3">
-              {riders.offline.map(rider => (
-                <div key={rider.id} className="bg-midnight-800 border border-midnight-700 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gray-500 mt-1.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-300 text-sm font-semibold">{rider.name}</p>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${KYC_COLORS[rider.kycStatus] || 'bg-gray-500/15 text-gray-400'}`}>
-                          {rider.kycStatus.replace(/_/g, ' ')}
-                        </span>
+          {riders.offline.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowOffline(!showOffline)}
+                className="text-gray-400 text-xs font-semibold mb-3 hover:text-gray-300 transition-colors"
+              >
+                {showOffline ? 'Hide' : 'Show'} offline ({riders.offline.length})
+              </button>
+              {showOffline && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {riders.offline.map(rider => (
+                    <div key={rider.id} className="bg-midnight-800 border border-midnight-700 rounded-xl p-4 flex items-start gap-3">
+                      <div className="w-3 h-3 rounded-full bg-gray-500 mt-1.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-gray-300 text-sm font-semibold">{rider.name}</p>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${KYC_COLORS[rider.kycStatus] || 'bg-gray-500/15 text-gray-400'}`}>
+                            {rider.kycStatus.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <p className="text-gray-500 text-xs">{rider.plateNumber}</p>
                       </div>
-                      <p className="text-gray-500 text-xs">{rider.plateNumber}</p>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {riders.online.length > 0 && (
+            <div className="mb-6">
+              <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-3">Online ({riders.online.length})</p>
+              <div className="space-y-3">
+                {riders.online.map(rider => {
+                  const isBusy = !!rider.currentOrder;
+                  return (
+                    <div key={rider.id} className="bg-midnight-800 border border-midnight-700 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${isBusy ? 'bg-amber-400' : 'bg-green-400'}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-semibold">{rider.name}</p>
+                          <p className="text-gray-400 text-xs">{rider.plateNumber} · ⭐ {rider.rating.toFixed(1)} · {rider.totalTrips} trips · KSh {rider.todayEarnings} today</p>
+                          {isBusy ? (
+                            <div className="mt-2 flex items-center gap-2">
+                              <p className="text-gray-300 text-xs truncate flex-1">{rider.currentOrder!.errandDescription}</p>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex-shrink-0 ${STATUS_COLORS[rider.currentOrder!.status] || 'bg-gray-500/15 text-gray-400'}`}>
+                                {rider.currentOrder!.status.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md bg-green-500/15 text-green-400">Available</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {riders.offline.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowOffline(!showOffline)}
+                className="text-gray-400 text-xs font-semibold mb-3 hover:text-gray-300 transition-colors"
+              >
+                {showOffline ? 'Hide' : 'Show'} offline ({riders.offline.length})
+              </button>
+              {showOffline && (
+                <div className="space-y-3">
+                  {riders.offline.map(rider => (
+                    <div key={rider.id} className="bg-midnight-800 border border-midnight-700 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-gray-500 mt-1.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-gray-300 text-sm font-semibold">{rider.name}</p>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${KYC_COLORS[rider.kycStatus] || 'bg-gray-500/15 text-gray-400'}`}>
+                              {rider.kycStatus.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <p className="text-gray-500 text-xs">{rider.plateNumber}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {riders.online.length === 0 && riders.offline.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-3">🛵</div>
+              <h3 className="text-white font-bold text-base mb-1">No Riders</h3>
+              <p className="text-gray-400 text-sm">Riders will appear here when they join</p>
             </div>
           )}
         </div>

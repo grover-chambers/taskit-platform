@@ -28,7 +28,7 @@ const TYPE_ICONS: Record<string, string> = {
   INFO: 'ℹ️',
 };
 
-export default function MtaagoNotificationsPage() {
+export default function MtaaGoAlertsPage() {
   const { subRole, loading: roleLoading } = useEnterprise();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,29 +76,27 @@ export default function MtaagoNotificationsPage() {
     } catch {}
   };
 
+  const isOwner = subRole === 'OWNER';
+
   if (roleLoading || loading) {
     return (
-      <div className="px-6 pt-6 pb-24">
-        <div className="flex items-center justify-center py-12">
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
-            <p className="text-gray-500 text-xs">Loading...</p>
-          </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
+          <p className="text-gray-500 text-xs">Loading...</p>
         </div>
       </div>
     );
   }
 
-  const isOwner = subRole === 'OWNER';
-
   return (
-    <div className="px-6 pt-6 pb-24">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-white font-bold text-lg">{isOwner ? 'Alerts' : 'Notifications'}</h1>
+    <div className={isOwner ? 'space-y-4' : 'px-6 pt-6 pb-24'}>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-white font-bold text-xl">{isOwner ? 'Alerts' : 'Notifications'}</h1>
         {unread > 0 && (
           <button
             onClick={markAllRead}
-            className="text-haraka-500 text-[10px] font-bold hover:underline"
+            className="text-haraka-500 text-xs font-bold hover:underline"
           >
             Mark all read
           </button>
@@ -106,7 +104,7 @@ export default function MtaagoNotificationsPage() {
       </div>
 
       {unread > 0 && (
-        <div className="bg-haraka-500/10 border border-haraka-500/30 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
+        <div className="bg-haraka-500/10 border border-haraka-500/30 rounded-xl px-4 py-3 flex items-center justify-between">
           <span className="text-haraka-500 text-xs font-bold">{unread} unread</span>
           <button
             onClick={markAllRead}

@@ -107,7 +107,7 @@ function generateInvoiceHTML(billing: BillingData, monthName: string, year: numb
   </table>` : '<p style="color:#888; text-align:center; padding:30px;">No deliveries this period</p>'}
 
   <div class="footer">
-    <p>This is a computer-generated invoice from ${billing.enterpriseName} via Mtaago Delivery Platform.</p>
+    <p>This is a computer-generated invoice from ${billing.enterpriseName} via mtaaGo Delivery Platform.</p>
   </div>
 
   <div class="no-print" style="text-align:center; margin-top:30px;">

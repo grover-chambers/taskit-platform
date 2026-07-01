@@ -403,8 +403,8 @@ async function main() {
   console.log('   Rider: peter.m@taskit.co.ke / rider123');
   console.log('   Rider 2: grace.k@taskit.co.ke / rider123');
   console.log('   Vendor: mama.njeri@taskit.co.ke / vendor123');
-  console.log('   Mtaago Boss: kanini.boss@taskit.co.ke / boss123');
-  console.log('   Mtaago Operator: kanini.desk@taskit.co.ke / desk123');
+  console.log('   mtaaGo Boss: kanini.boss@taskit.co.ke / boss123');
+  console.log('   mtaaGo Operator: kanini.desk@taskit.co.ke / desk123');
 }
 
 main()

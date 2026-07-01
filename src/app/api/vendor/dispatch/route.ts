@@ -177,7 +177,7 @@ export async function POST(request: Request) {
         data: {
           orderId,
           status: 'ASSIGNED',
-          note: 'Rider dispatched via Mtaago',
+          note: 'Rider dispatched via mtaaGo',
         },
       });
 
@@ -190,7 +190,7 @@ export async function POST(request: Request) {
         data: {
           userId: riderId,
           title: 'New Job',
-          body: `Order #${shortId} assigned via Mtaago`,
+          body: `Order #${shortId} assigned via mtaaGo`,
           type: 'ORDER',
         },
       });

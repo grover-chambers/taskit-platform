@@ -78,7 +78,7 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function MtaagoOrderDetailPage() {
+export default function MtaaGoOrderDetailPage() {
   const params = useParams();
   const orderId = params.id as string;
   const { subRole, loading: roleLoading } = useEnterprise();
@@ -233,7 +233,7 @@ export default function MtaagoOrderDetailPage() {
   }
 
   return (
-    <div className="px-6 pt-4 pb-24 space-y-4">
+      <div className={isOwner ? '' : 'px-6 pt-4 pb-24 space-y-4'}>
       <div className="flex items-center gap-3">
         <Link href="/mtaago/orders" className="text-gray-400 hover:text-white transition-colors">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>

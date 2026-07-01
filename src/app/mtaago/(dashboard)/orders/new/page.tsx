@@ -17,7 +17,7 @@ interface RecentRecipient {
   dropoff: string;
 }
 
-export default function MtaagoNewOrderPage() {
+export default function MtaaGoNewOrderPage() {
   const router = useRouter();
   const { subRole, loading: roleLoading } = useEnterprise();
   const [zones, setZones] = useState<Zone[]>([]);
@@ -143,7 +143,7 @@ export default function MtaagoNewOrderPage() {
         <div className="text-4xl mb-3">🔒</div>
         <h3 className="text-white font-bold text-base mb-1">Operators Only</h3>
         <p className="text-gray-400 text-sm">Only operators can create new orders</p>
-        <Link href="/mtaago" className="inline-block mt-4 bg-haraka-500/15 border border-haraka-500/30 text-haraka-500 px-4 py-2 rounded-lg text-xs font-bold hover:bg-haraka-500/25 transition-colors">Back to Overview</Link>
+        <Link href="/mtaago" className="text-haraka-500/15 border border-haraka-500/30 text-haraka-500 px-4 py-2 rounded-lg text-xs font-bold hover:bg-haraka-500/25 transition-colors">Back to Overview</Link>
       </div>
     );
   }

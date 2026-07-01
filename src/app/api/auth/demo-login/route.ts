@@ -15,7 +15,7 @@ const DEMO_ACCOUNTS: Record<string, { email: string; password: string }> = {
 };
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.DEMO_MODE !== 'true' && process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Demo login disabled in production' }, { status: 403 });
   }
 

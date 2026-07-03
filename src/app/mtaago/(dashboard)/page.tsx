@@ -68,7 +68,7 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function MtaaGoOwnerDashboard() {
+export default function MtaaGoDashboard() {
   const { subRole, enterprise, loading: roleLoading } = useEnterprise();
   const [data, setData] = useState<DispatchData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,6 +76,8 @@ export default function MtaaGoOwnerDashboard() {
   const [interveneAction, setInterveneAction] = useState('');
   const [interveneDetails, setInterveneDetails] = useState('');
   const [actionOrderId, setActionOrderId] = useState<string | null>(null);
+  const [dispatchingOrderId, setDispatchingOrderId] = useState<string | null>(null);
+  const [showRiderPicker, setShowRiderPicker] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const fetchData = useCallback(async () => {
@@ -94,6 +96,91 @@ export default function MtaaGoOwnerDashboard() {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  const handleConfirmPayment = async (orderId: string, method: string) => {
+    setActionOrderId(orderId);
+    setError('');
+    try {
+      const res = await fetch('/api/enterprise/orders/confirm-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, method }),
+      });
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const d = await res.json();
+        setError(d.error);
+      }
+    } catch {
+      setError('Network error');
+    }
+    setActionOrderId(null);
+  };
+
+  const handlePacked = async (orderId: string) => {
+    setActionOrderId(orderId);
+    setError('');
+    try {
+      const res = await fetch('/api/enterprise/orders/packed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const d = await res.json();
+        setError(d.error);
+      }
+    } catch {
+      setError('Network error');
+    }
+    setActionOrderId(null);
+  };
+
+  const handleAwaitRider = async (orderId: string) => {
+    setActionOrderId(orderId);
+    setError('');
+    try {
+      const res = await fetch('/api/enterprise/orders/await-rider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const d = await res.json();
+        setError(d.error);
+      }
+    } catch {
+      setError('Network error');
+    }
+    setActionOrderId(null);
+  };
+
+  const handleDispatch = async (orderId: string, riderId: string) => {
+    setDispatchingOrderId(orderId);
+    setError('');
+    try {
+      const res = await fetch('/api/enterprise/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, riderId }),
+      });
+      if (res.ok) {
+        setShowRiderPicker(null);
+        await fetchData();
+      } else {
+        const d = await res.json();
+        setError(d.error);
+      }
+    } catch {
+      setError('Network error');
+    }
+    setDispatchingOrderId(null);
+  };
 
   const handleIntervene = async (orderId: string, action: string) => {
     setActionOrderId(orderId);
@@ -143,20 +230,11 @@ export default function MtaaGoOwnerDashboard() {
   const awaitingRiderOrders = pendingOrders.filter(o => o.status === 'AWAITING_RIDER');
   const pipelineTotal = pricedOrders.length + paidOrders.length + packedOrders.length + awaitingRiderOrders.length;
 
-  if (!isOwner) {
-    return (
-      <div className="space-y-4 px-4 pt-4 pb-24">
-        <h1 className="text-white font-bold text-lg">Workspace</h1>
-        <p className="text-gray-400 text-sm">Switch to Operator view for full dispatch control</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-white font-bold text-xl">Dashboard</h1>
-        <p className="text-gray-500 text-xs mt-0.5">Real-time overview · {enterprise?.name}</p>
+        <h1 className="text-white font-bold text-xl">{isOwner ? 'Dashboard' : 'Workspace'}</h1>
+        <p className="text-gray-500 text-xs mt-0.5">{isOwner ? 'Real-time overview' : 'Live dispatch control'} · {enterprise?.name}</p>
       </div>
 
       {error && (
@@ -165,6 +243,7 @@ export default function MtaaGoOwnerDashboard() {
         </div>
       )}
 
+      {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard label="On Road" value={activeOrders.length} color="text-haraka-500" />
         <MetricCard label="In Pipeline" value={pipelineTotal} color="text-orange-400" />
@@ -172,8 +251,166 @@ export default function MtaaGoOwnerDashboard() {
         <MetricCard label="Today Revenue" value={`KSh ${todayRevenue.toLocaleString()}`} color="text-haraka-500" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
+      {/* Operator Action Panels */}
+      {!isOwner && (
+        <>
+          {pricedOrders.length > 0 && (
+            <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-white font-bold text-sm">Awaiting Payment</h2>
+                <span className="bg-yellow-500/15 text-yellow-400 text-[9px] font-bold px-2 py-0.5 rounded-md">{pricedOrders.length}</span>
+              </div>
+              <div className="space-y-3">
+                {pricedOrders.map(order => (
+                  <div key={order.id} className="bg-midnight-900 border border-midnight-700 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-white text-xs font-semibold">#{order.id.slice(-7).toUpperCase()}</p>
+                        <p className="text-gray-400 text-xs truncate max-w-[200px]">{order.errandDescription}</p>
+                      </div>
+                      <span className="text-haraka-500 font-bold text-sm">KSh {order.totalAmount}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleConfirmPayment(order.id, 'MANUAL')}
+                        disabled={actionOrderId === order.id}
+                        className="flex-1 bg-haraka-500 text-midnight-950 py-2 rounded-lg text-xs font-bold hover:bg-haraka-400 transition-colors disabled:opacity-50"
+                      >
+                        {actionOrderId === order.id ? '...' : 'Paid at Counter'}
+                      </button>
+                      <button
+                        onClick={() => handleConfirmPayment(order.id, 'MPESA')}
+                        disabled={actionOrderId === order.id}
+                        className="flex-1 bg-green-600/15 border border-green-600/30 text-green-400 py-2 rounded-lg text-xs font-bold hover:bg-green-600/25 transition-colors disabled:opacity-50"
+                      >
+                        {actionOrderId === order.id ? '...' : 'M-Pesa Paid'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {paidOrders.length > 0 && (
+            <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-white font-bold text-sm">Paid — Needs Packing</h2>
+                <span className="bg-blue-500/15 text-blue-400 text-[9px] font-bold px-2 py-0.5 rounded-md">{paidOrders.length}</span>
+              </div>
+              <div className="space-y-3">
+                {paidOrders.map(order => (
+                  <div key={order.id} className="bg-midnight-900 border border-midnight-700 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-white text-xs font-semibold">#{order.id.slice(-7).toUpperCase()}</p>
+                        <p className="text-gray-400 text-xs truncate max-w-[200px]">{order.errandDescription}</p>
+                      </div>
+                      <span className="text-haraka-500 font-bold text-sm">KSh {order.totalAmount}</span>
+                    </div>
+                    <button
+                      onClick={() => handlePacked(order.id)}
+                      disabled={actionOrderId === order.id}
+                      className="w-full bg-haraka-500 text-midnight-950 py-2 rounded-lg text-xs font-bold hover:bg-haraka-400 transition-colors disabled:opacity-50"
+                    >
+                      {actionOrderId === order.id ? 'Marking...' : 'Mark as Packed'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {packedOrders.length > 0 && (
+            <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-white font-bold text-sm">Packed — Ready for Queue</h2>
+                <span className="bg-teal-500/15 text-teal-400 text-[9px] font-bold px-2 py-0.5 rounded-md">{packedOrders.length}</span>
+              </div>
+              <div className="space-y-3">
+                {packedOrders.map(order => (
+                  <div key={order.id} className="bg-midnight-900 border border-midnight-700 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-white text-xs font-semibold">#{order.id.slice(-7).toUpperCase()}</p>
+                        <p className="text-gray-400 text-xs truncate max-w-[200px]">{order.errandDescription}</p>
+                      </div>
+                      <span className="text-haraka-500 font-bold text-sm">KSh {order.totalAmount}</span>
+                    </div>
+                    <button
+                      onClick={() => handleAwaitRider(order.id)}
+                      disabled={actionOrderId === order.id}
+                      className="w-full bg-haraka-500 text-midnight-950 py-2 rounded-lg text-xs font-bold hover:bg-haraka-400 transition-colors disabled:opacity-50"
+                    >
+                      {actionOrderId === order.id ? 'Moving...' : 'Send to Rider Queue'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {awaitingRiderOrders.length > 0 && (
+            <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-white font-bold text-sm">Awaiting Rider</h2>
+                <span className="bg-orange-500/15 text-orange-400 text-[9px] font-bold px-2 py-0.5 rounded-md">{awaitingRiderOrders.length}</span>
+              </div>
+              <div className="space-y-3">
+                {awaitingRiderOrders.map(order => (
+                  <div key={order.id} className="bg-midnight-900 border border-midnight-700 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-white text-xs font-semibold">#{order.id.slice(-7).toUpperCase()}</p>
+                        <p className="text-gray-400 text-xs truncate max-w-[200px]">{order.errandDescription}</p>
+                      </div>
+                      <span className="text-haraka-500 font-bold text-sm">KSh {order.totalAmount}</span>
+                    </div>
+                    {showRiderPicker === order.id ? (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Rider</p>
+                        {availableRiders.length === 0 ? (
+                          <p className="text-gray-500 text-xs">No riders available</p>
+                        ) : (
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {availableRiders.map(rider => (
+                              <button
+                                key={rider.id}
+                                onClick={() => handleDispatch(order.id, rider.id)}
+                                disabled={!!dispatchingOrderId}
+                                className="w-full bg-midnight-800 border border-midnight-600 p-2 rounded-lg flex justify-between items-center hover:border-haraka-500/50 transition-colors disabled:opacity-50"
+                              >
+                                <div className="text-left">
+                                  <div className="text-white text-xs font-semibold">{rider.user.name}</div>
+                                  <div className="text-gray-500 text-[9px]">{rider.plateNumber} · ⭐ {rider.rating.toFixed(1)} · {rider.totalTrips} trips</div>
+                                </div>
+                                <span className="text-haraka-500 text-[10px] font-bold">ASSIGN</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <button onClick={() => setShowRiderPicker(null)} className="text-gray-500 text-[10px]">Cancel</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowRiderPicker(order.id)}
+                        disabled={!!dispatchingOrderId}
+                        className="w-full bg-haraka-500 text-midnight-950 py-2 rounded-lg text-xs font-bold hover:bg-haraka-400 transition-colors disabled:opacity-50"
+                      >
+                        {dispatchingOrderId === order.id ? 'Assigning...' : 'DISPATCH RIDER'}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Owner Overview */}
+      {isOwner && (
+        <>
           <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-white font-bold text-sm">Pipeline</h2>
@@ -266,53 +503,34 @@ export default function MtaaGoOwnerDashboard() {
               </div>
             </div>
           )}
-        </div>
+        </>
+      )}
 
-        <div className="space-y-4">
-          <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
-            <h2 className="text-white font-bold text-sm mb-3">Fleet Status</h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-xs">Available</span>
-                <span className="text-green-400 font-bold text-sm">{availableRiders.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-xs">Dispatched</span>
-                <span className="text-amber-400 font-bold text-sm">{data.busyRiders?.length || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-xs">Offline</span>
-                <span className="text-gray-500 font-bold text-sm">{data.offlineRiders?.length || 0}</span>
-              </div>
-            </div>
-            <Link href="/mtaago/riders" className="block mt-4 text-haraka-500 text-[10px] font-bold hover:underline">View Fleet →</Link>
+      {/* Fleet Status (both roles) */}
+      <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
+        <h2 className="text-white font-bold text-sm mb-3">Fleet Status</h2>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 text-xs">Available</span>
+            <span className="text-green-400 font-bold text-sm">{availableRiders.length}</span>
           </div>
-
-          <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5">
-            <h2 className="text-white font-bold text-sm mb-3">Quick Actions</h2>
-            <div className="space-y-2">
-              <Link href="/mtaago/orders" className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors">
-                <span className="text-white text-xs font-semibold">All Orders</span>
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Link>
-              <Link href="/mtaago/billing" className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors">
-                <span className="text-white text-xs font-semibold">Invoices</span>
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Link>
-              <Link href="/mtaago/notifications" className="flex items-center justify-between bg-midnight-900 border border-midnight-700 rounded-lg p-3 hover:border-haraka-500/50 transition-colors">
-                <span className="text-white text-xs font-semibold">Alerts</span>
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Link>
-            </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 text-xs">Dispatched</span>
+            <span className="text-amber-400 font-bold text-sm">{data.busyRiders?.length || 0}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 text-xs">Offline</span>
+            <span className="text-gray-500 font-bold text-sm">{data.offlineRiders?.length || 0}</span>
           </div>
         </div>
+        <Link href="/mtaago/riders" className="block mt-4 text-haraka-500 text-[10px] font-bold hover:underline">View Fleet →</Link>
       </div>
 
       {activeOrders.length === 0 && pipelineTotal === 0 && (
         <div className="text-center py-12">
-          <div className="text-4xl mb-3">👁️</div>
-          <h3 className="text-white font-bold text-lg mb-1">Nothing to Watch</h3>
-          <p className="text-gray-400 text-sm">No active orders to monitor</p>
+          <div className="text-4xl mb-3">{isOwner ? '👁️' : '📋'}</div>
+          <h3 className="text-white font-bold text-lg mb-1">{isOwner ? 'Nothing to Watch' : 'All Clear'}</h3>
+          <p className="text-gray-400 text-sm">{isOwner ? 'No active orders to monitor' : 'No orders in the pipeline'}</p>
         </div>
       )}
     </div>

@@ -27,6 +27,14 @@ interface Order {
   urgency: string;
   deliveryOtp: string | null;
   createdAt: string;
+  pickupLat: number | null;
+  pickupLng: number | null;
+  dropoffLat: number | null;
+  dropoffLng: number | null;
+  distanceKm: number | null;
+  pricePerKmSnapshot: number | null;
+  weightKg: number | null;
+  weightSurcharge: number;
   rider: {
     id: string;
     name: string;
@@ -485,6 +493,45 @@ export default function MtaaGoOrderDetailPage() {
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <span className="text-red-400 text-xs font-bold">D</span>
             <span>{order.dropoffLocation}</span>
+          </div>
+        )}
+        {order.distanceKm != null && (
+          <div className="mt-3 pt-3 border-t border-midnight-700 space-y-1.5">
+            <p className="text-[9px] text-blue-400 uppercase tracking-wider font-bold">Distance Breakdown</p>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400 text-xs">Distance</span>
+              <span className="text-blue-400 text-xs font-bold">{order.distanceKm} km</span>
+            </div>
+            {order.pricePerKmSnapshot != null && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-xs">Rate</span>
+                <span className="text-gray-300 text-xs">KSh {order.pricePerKmSnapshot}/km</span>
+              </div>
+            )}
+            {order.pricePerKmSnapshot != null && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-xs">Distance Cost</span>
+                <span className="text-gray-300 text-xs">KSh {Math.ceil(order.distanceKm * order.pricePerKmSnapshot)}</span>
+              </div>
+            )}
+            {order.weightSurcharge > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-xs">Weight Surcharge</span>
+                <span className="text-gray-300 text-xs">KSh {order.weightSurcharge}</span>
+              </div>
+            )}
+            {order.pickupLat != null && order.pickupLng != null && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-xs">Pickup Coords</span>
+                <span className="text-gray-500 text-[10px] font-mono">{Number(order.pickupLat).toFixed(5)}, {Number(order.pickupLng).toFixed(5)}</span>
+              </div>
+            )}
+            {order.dropoffLat != null && order.dropoffLng != null && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-xs">Dropoff Coords</span>
+                <span className="text-gray-500 text-[10px] font-mono">{Number(order.dropoffLat).toFixed(5)}, {Number(order.dropoffLng).toFixed(5)}</span>
+              </div>
+            )}
           </div>
         )}
       </div>

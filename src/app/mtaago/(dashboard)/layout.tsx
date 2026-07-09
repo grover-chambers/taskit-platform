@@ -10,6 +10,15 @@ export default function MtaaGoDashboardLayout({ children }: { children: React.Re
   const router = useRouter();
   const [subRole, setSubRole] = useState<'OWNER' | 'OPERATOR' | null>(null);
   const [enterprise, setEnterprise] = useState<{ id: string; name: string; rate: number; active: boolean } | null>(null);
+  const [pricing, setPricing] = useState<{
+    pricingModel: string;
+    fuelPricePerLiter: number | null;
+    fuelConsumptionKmpl: number | null;
+    markupPercent: number;
+    pricePerKm: number | null;
+    baseFare: number;
+    minimumFare: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -21,6 +30,7 @@ export default function MtaaGoDashboardLayout({ children }: { children: React.Re
         const data = await res.json();
         setSubRole(data.subRole);
         setEnterprise(data.enterprise);
+        setPricing(data.pricing || null);
         setAuthorized(true);
       } else {
         router.replace('/mtaago/login');
@@ -46,7 +56,7 @@ export default function MtaaGoDashboardLayout({ children }: { children: React.Re
   const isOwner = subRole === 'OWNER';
 
   return (
-    <EnterpriseContext.Provider value={{ subRole, enterprise, loading }}>
+    <EnterpriseContext.Provider value={{ subRole, enterprise, pricing, loading }}>
       {isOwner ? (
         <OwnerShell sidebarCollapsed={sidebarCollapsed} setSidebarCollapsed={setSidebarCollapsed} subRole={subRole} enterprise={enterprise}>
           {children}

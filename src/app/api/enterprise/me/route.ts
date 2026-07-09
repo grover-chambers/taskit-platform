@@ -20,6 +20,13 @@ export async function GET() {
             name: true,
             rate: true,
             active: true,
+            pricingModel: true,
+            fuelPricePerLiter: true,
+            fuelConsumptionKmpl: true,
+            markupPercent: true,
+            pricePerKm: true,
+            baseFare: true,
+            minimumFare: true,
           },
         },
       },
@@ -32,7 +39,21 @@ export async function GET() {
     return NextResponse.json({
       subRole: membership.role,
       enterpriseClientId: membership.enterpriseClientId,
-      enterprise: membership.enterpriseClient,
+      enterprise: {
+        id: membership.enterpriseClient.id,
+        name: membership.enterpriseClient.name,
+        rate: membership.enterpriseClient.rate,
+        active: membership.enterpriseClient.active,
+      },
+      pricing: {
+        pricingModel: membership.enterpriseClient.pricingModel,
+        fuelPricePerLiter: membership.enterpriseClient.fuelPricePerLiter,
+        fuelConsumptionKmpl: membership.enterpriseClient.fuelConsumptionKmpl,
+        markupPercent: membership.enterpriseClient.markupPercent,
+        pricePerKm: membership.enterpriseClient.pricePerKm,
+        baseFare: membership.enterpriseClient.baseFare,
+        minimumFare: membership.enterpriseClient.minimumFare,
+      },
     });
   } catch (error: unknown) {
     return sanitizedErrorResponse(error);

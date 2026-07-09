@@ -266,8 +266,14 @@ async function main() {
   // ── EnterpriseClient (upsert by id) ──
   const kanini = await prisma.enterpriseClient.upsert({
     where: { id: 'enterprise-001' },
-    update: { name: 'Kanini Haraka Enterprises', apiKey: 'kan_os_live_4a7b9c2d1e3f', contact: '+254700000010', rate: 120, active: true, ownerId: kaniniBoss.id },
-    create: { id: 'enterprise-001', name: 'Kanini Haraka Enterprises', apiKey: 'kan_os_live_4a7b9c2d1e3f', contact: '+254700000010', rate: 120, active: true, ownerId: kaniniBoss.id },
+    update: {
+      name: 'Kanini Haraka Enterprises', apiKey: 'kan_os_live_4a7b9c2d1e3f', contact: '+254700000010', rate: 120, active: true, ownerId: kaniniBoss.id,
+      pricingModel: 'DISTANCE', fuelPricePerLiter: 186, fuelConsumptionKmpl: 15, markupPercent: 30, pricePerKm: 17, baseFare: 50, minimumFare: 150,
+    },
+    create: {
+      id: 'enterprise-001', name: 'Kanini Haraka Enterprises', apiKey: 'kan_os_live_4a7b9c2d1e3f', contact: '+254700000010', rate: 120, active: true, ownerId: kaniniBoss.id,
+      pricingModel: 'DISTANCE', fuelPricePerLiter: 186, fuelConsumptionKmpl: 15, markupPercent: 30, pricePerKm: 17, baseFare: 50, minimumFare: 150,
+    },
   });
 
   // ── EnterpriseUser (upsert by userId+enterpriseClientId) ──
@@ -364,6 +370,65 @@ async function main() {
   // More enterprise order status logs
   const laterEntOrderIds = [entOrder5.id, entOrder6.id, entOrder7.id, entOrder8.id];
   await prisma.orderStatus.deleteMany({ where: { orderId: { in: laterEntOrderIds } } });
+
+  // ── Distance-based enterprise orders ──
+  const distOrder1 = await prisma.order.upsert({
+    where: { id: 'dist-order-001' },
+    update: {
+      errandDescription: 'Spare parts delivery — Brake pads, Oil filter to Kiambu Road garage',
+      status: 'PAID', paymentStatus: 'PAID', paymentMethod: 'MANUAL', totalAmount: 310,
+      pickupLocation: 'Kanini Haraka Warehouse, Industrial Area',
+      dropoffLocation: 'AutoCare Garage, Kiambu Road',
+      contactPhone: '+254700000011',
+      pickupLat: -1.286389, pickupLng: 36.817223,
+      dropoffLat: -1.228333, dropoffLng: 36.855833,
+      distanceKm: 14.5, pricePerKmSnapshot: 17,
+      vendorId: kaniniDesk.id, enterpriseClientId: kanini.id, customerId: kaniniDesk.id,
+      weightKg: 8, weightSurcharge: 100,
+    },
+    create: {
+      id: 'dist-order-001',
+      errandDescription: 'Spare parts delivery — Brake pads, Oil filter to Kiambu Road garage',
+      status: 'PAID', paymentStatus: 'PAID', paymentMethod: 'MANUAL', totalAmount: 310,
+      pickupLocation: 'Kanini Haraka Warehouse, Industrial Area',
+      dropoffLocation: 'AutoCare Garage, Kiambu Road',
+      contactPhone: '+254700000011',
+      pickupLat: -1.286389, pickupLng: 36.817223,
+      dropoffLat: -1.228333, dropoffLng: 36.855833,
+      distanceKm: 14.5, pricePerKmSnapshot: 17,
+      vendorId: kaniniDesk.id, enterpriseClientId: kanini.id, customerId: kaniniDesk.id,
+      weightKg: 8, weightSurcharge: 100,
+    },
+  });
+
+  const distOrder2 = await prisma.order.upsert({
+    where: { id: 'dist-order-002' },
+    update: {
+      errandDescription: 'Flower delivery — 12 Rose bouquet to Karen residence',
+      status: 'PRICED', paymentStatus: 'UNPAID', paymentMethod: 'PENDING', totalAmount: 450,
+      pickupLocation: 'Kanini Haraka Warehouse, Industrial Area',
+      dropoffLocation: 'Karen Shopping Centre',
+      contactPhone: '+254700000011',
+      pickupLat: -1.286389, pickupLng: 36.817223,
+      dropoffLat: -1.325000, dropoffLng: 36.710000,
+      distanceKm: 22.8, pricePerKmSnapshot: 17,
+      vendorId: kaniniDesk.id, enterpriseClientId: kanini.id, customerId: kaniniDesk.id,
+      weightKg: 2, weightSurcharge: 0,
+    },
+    create: {
+      id: 'dist-order-002',
+      errandDescription: 'Flower delivery — 12 Rose bouquet to Karen residence',
+      status: 'PRICED', paymentStatus: 'UNPAID', paymentMethod: 'PENDING', totalAmount: 450,
+      pickupLocation: 'Kanini Haraka Warehouse, Industrial Area',
+      dropoffLocation: 'Karen Shopping Centre',
+      contactPhone: '+254700000011',
+      pickupLat: -1.286389, pickupLng: 36.817223,
+      dropoffLat: -1.325000, dropoffLng: 36.710000,
+      distanceKm: 22.8, pricePerKmSnapshot: 17,
+      vendorId: kaniniDesk.id, enterpriseClientId: kanini.id, customerId: kaniniDesk.id,
+      weightKg: 2, weightSurcharge: 0,
+    },
+  });
   await prisma.orderStatus.createMany({
     data: [
       { orderId: entOrder5.id, status: 'PRICED', note: 'Order created by operator — awaiting payment' },
@@ -376,6 +441,9 @@ async function main() {
       { orderId: entOrder8.id, status: 'PAID', note: 'Payment confirmed manually at counter' },
       { orderId: entOrder8.id, status: 'PACKED', note: 'Items packed and ready' },
       { orderId: entOrder8.id, status: 'AWAITING_RIDER', note: 'Sent to rider queue — awaiting dispatch' },
+      { orderId: distOrder1.id, status: 'PRICED', note: 'Distance order — 14.5km × KSh 17/km + KSh 50 base + KSh 100 weight' },
+      { orderId: distOrder1.id, status: 'PAID', note: 'Payment confirmed via MANUAL' },
+      { orderId: distOrder2.id, status: 'PRICED', note: 'Distance order — 22.8km × KSh 17/km + KSh 50 base' },
     ],
   });
 
@@ -393,6 +461,10 @@ async function main() {
       { enterpriseClientId: kanini.id, userId: kaniniDesk.id, action: 'CONFIRM_PAYMENT', entityType: 'ORDER', entityId: entOrder8.id, details: 'Payment confirmed via MANUAL' },
       { enterpriseClientId: kanini.id, userId: kaniniDesk.id, action: 'MARK_PACKED', entityType: 'ORDER', entityId: entOrder8.id, details: 'Marked as packed' },
       { enterpriseClientId: kanini.id, userId: kaniniDesk.id, action: 'AWAIT_RIDER', entityType: 'ORDER', entityId: entOrder8.id, details: 'Sent to rider queue' },
+      { enterpriseClientId: kanini.id, userId: kaniniBoss.id, action: 'UPDATE_PRICING', entityType: 'PRICING_CONFIG', entityId: kanini.id, details: 'Set distance pricing: fuel KSh 186/L, 15km/L, 30% markup = KSh 17/km, base KSh 50, min KSh 150' },
+      { enterpriseClientId: kanini.id, userId: kaniniDesk.id, action: 'CREATE_ORDER', entityType: 'ORDER', entityId: distOrder1.id, details: 'Created order KSh 310 — 14.5km × KSh 17/km — Spare parts delivery' },
+      { enterpriseClientId: kanini.id, userId: kaniniDesk.id, action: 'CONFIRM_PAYMENT', entityType: 'ORDER', entityId: distOrder1.id, details: 'Payment confirmed via MANUAL' },
+      { enterpriseClientId: kanini.id, userId: kaniniDesk.id, action: 'CREATE_ORDER', entityType: 'ORDER', entityId: distOrder2.id, details: 'Created order KSh 450 — 22.8km × KSh 17/km — Flower delivery' },
     ],
   });
 

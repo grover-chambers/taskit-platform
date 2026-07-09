@@ -310,10 +310,18 @@ model Order {
   paymentMethod        String   @default("M-PESA")
   mpesaTransactionCode String?  @unique
   mpesaReceipt         String?  @unique
-   totalAmount          Int      @default(0)
-   weightKg             Int?
-   weightSurcharge      Int      @default(0)
-   isLaaS               Boolean  @default(false)
+  totalAmount          Int      @default(0)
+  weightKg             Int?
+  weightSurcharge      Int      @default(0)
+  isLaaS               Boolean  @default(false)
+
+  pickupLat            Decimal? @db.Decimal(10, 7)
+  pickupLng            Decimal? @db.Decimal(10, 7)
+  dropoffLat           Decimal? @db.Decimal(10, 7)
+  dropoffLng           Decimal? @db.Decimal(10, 7)
+  distanceKm           Decimal? @db.Decimal(8, 2)
+  pricePerKmSnapshot   Int?
+
   idempotencyKey       String?  @unique
   deliveryOtp          String?
   otpGeneratedAt      DateTime?
@@ -325,14 +333,14 @@ model Order {
 
   customerId String
   riderId    String?
-  zoneId     String
+  zoneId     String?
   shopId     String?
   vendorId   String?
   enterpriseClientId String?
 
   customer           User                @relation("CustomerOrders", fields: [customerId], references: [id])
   rider              User?               @relation("RiderOrders", fields: [riderId], references: [id])
-  zone               Zone                @relation(fields: [zoneId], references: [id])
+  zone               Zone?               @relation(fields: [zoneId], references: [id])
   shop               Shop?               @relation(fields: [shopId], references: [id])
   enterpriseClient   EnterpriseClient?   @relation(fields: [enterpriseClientId], references: [id])
   orderItems         OrderItem[]
@@ -401,6 +409,15 @@ model EnterpriseClient {
   contact   String?
   rate      Int      @default(120)
   active    Boolean  @default(true)
+
+  pricingModel         String   @default("ZONE") // ZONE | DISTANCE
+  fuelPricePerLiter    Decimal? @db.Decimal(8, 2)
+  fuelConsumptionKmpl  Decimal? @db.Decimal(6, 2) // km per liter
+  markupPercent        Int      @default(30)
+  pricePerKm           Int?     // derived: ceil(fuelPrice / consumption * (1 + markup/100))
+  baseFare             Int      @default(0)
+  minimumFare          Int      @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

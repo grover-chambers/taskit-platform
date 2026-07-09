@@ -1,9 +1,20 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useEnterprise } from '../../EnterpriseContext';
+import { haversineKm } from '@/lib/distance';
+
+const DistanceMapPicker = dynamic(() => import('../../../../../components/DistanceMapPicker'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[250px] bg-midnight-800 border border-midnight-700 rounded-xl flex items-center justify-center">
+      <div className="w-5 h-5 border-2 border-haraka-500/30 border-t-haraka-500 rounded-full animate-spin" />
+    </div>
+  ),
+});
 
 interface Zone {
   id: string;
@@ -19,7 +30,7 @@ interface RecentRecipient {
 
 export default function MtaaGoNewOrderPage() {
   const router = useRouter();
-  const { subRole, loading: roleLoading } = useEnterprise();
+  const { subRole, pricing, loading: roleLoading } = useEnterprise();
   const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -35,6 +46,12 @@ export default function MtaaGoNewOrderPage() {
   const [zoneId, setZoneId] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [recentRecipients, setRecentRecipients] = useState<RecentRecipient[]>([]);
+
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapStep, setMapStep] = useState<'pickup' | 'dropoff'>('pickup');
+
+  const isDistanceMode = pricing?.pricingModel === 'DISTANCE';
 
   useEffect(() => {
     async function fetchInitial() {
@@ -85,7 +102,38 @@ export default function MtaaGoNewOrderPage() {
 
   const weightNum = weightKg ? parseFloat(weightKg) : 0;
   const surcharge = getWeightSurcharge(weightNum);
-  const totalPrice = (selectedZone?.price || 0) + surcharge;
+
+  const distanceKm = (pickupCoords && dropoffCoords)
+    ? Math.round(haversineKm(pickupCoords.lat, pickupCoords.lng, dropoffCoords.lat, dropoffCoords.lng) * 100) / 100
+    : null;
+
+  const distancePrice = (distanceKm != null && pricing?.pricePerKm)
+    ? (pricing.baseFare || 0) + Math.ceil(distanceKm * pricing.pricePerKm) + surcharge
+    : null;
+
+  const totalPrice = isDistanceMode
+    ? (distancePrice != null ? Math.max(distancePrice, pricing?.minimumFare || 0) : 0)
+    : (selectedZone?.price || 0) + surcharge;
+
+  const canSubmit = isDistanceMode
+    ? (pickupCoords && dropoffCoords && distanceKm != null && pricing?.pricePerKm)
+    : !!zoneId;
+
+  const handleMapClick = useCallback((lat: number, lng: number) => {
+    if (mapStep === 'pickup') {
+      setPickupCoords({ lat, lng });
+      setMapStep('dropoff');
+    } else {
+      setDropoffCoords({ lat, lng });
+      setMapStep('pickup');
+    }
+  }, [mapStep]);
+
+  const clearMapPoints = () => {
+    setPickupCoords(null);
+    setDropoffCoords(null);
+    setMapStep('pickup');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,19 +141,33 @@ export default function MtaaGoNewOrderPage() {
     setSubmitting(true);
 
     try {
+      const body: Record<string, unknown> = {
+        errandDescription,
+        pickupLocation,
+        dropoffLocation,
+        contactPhone,
+        specialInstructions: specialInstructions || undefined,
+        urgency,
+        weightKg: weightKg || undefined,
+      };
+
+      if (isDistanceMode) {
+        if (pickupCoords) {
+          body.pickupLat = pickupCoords.lat;
+          body.pickupLng = pickupCoords.lng;
+        }
+        if (dropoffCoords) {
+          body.dropoffLat = dropoffCoords.lat;
+          body.dropoffLng = dropoffCoords.lng;
+        }
+      } else {
+        body.zoneId = zoneId;
+      }
+
       const res = await fetch('/api/enterprise/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          errandDescription,
-          pickupLocation,
-          dropoffLocation,
-          contactPhone,
-          specialInstructions: specialInstructions || undefined,
-          urgency,
-          zoneId,
-          weightKg: weightKg || undefined,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
@@ -168,6 +230,9 @@ export default function MtaaGoNewOrderPage() {
         </Link>
         <h1 className="text-white font-bold text-lg">New Delivery</h1>
         <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">PRICED</span>
+        {isDistanceMode && (
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-400 border border-blue-500/30">DISTANCE</span>
+        )}
       </div>
 
       {recentRecipients.length > 0 && (
@@ -276,22 +341,66 @@ export default function MtaaGoNewOrderPage() {
           </div>
         </div>
 
-        <div>
-          <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Zone</label>
-          <select
-            value={zoneId}
-            onChange={e => setZoneId(e.target.value)}
-            required
-            className="w-full bg-midnight-800 border border-midnight-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-haraka-500 transition-colors appearance-none"
-          >
-            <option value="" disabled>Select a zone</option>
-            {zones.map(z => (
-              <option key={z.id} value={z.id} className="bg-midnight-900">
-                {z.name} — KSh {z.price}
-              </option>
-            ))}
-          </select>
-        </div>
+        {isDistanceMode ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Set Route on Map</label>
+              {(pickupCoords || dropoffCoords) && (
+                <button type="button" onClick={clearMapPoints} className="text-red-400 text-[9px] font-bold hover:text-red-300">Clear</button>
+              )}
+            </div>
+            <p className="text-gray-400 text-[10px]">
+              {mapStep === 'pickup' && !pickupCoords && 'Tap map to set PICKUP point'}
+              {mapStep === 'pickup' && pickupCoords && !dropoffCoords && 'Tap map to set DROPOFF point'}
+              {dropoffCoords && 'Both points set — tap to reset'}
+            </p>
+            <DistanceMapPicker
+              pickupCoords={pickupCoords}
+              dropoffCoords={dropoffCoords}
+              onMapClick={handleMapClick}
+            />
+            {pickupCoords && (
+              <div className="flex items-center gap-2 text-[10px]">
+                <div className="w-2 h-2 rounded-full bg-green-400" />
+                <span className="text-gray-400">Pickup: {pickupCoords.lat.toFixed(5)}, {pickupCoords.lng.toFixed(5)}</span>
+              </div>
+            )}
+            {dropoffCoords && (
+              <div className="flex items-center gap-2 text-[10px]">
+                <div className="w-2 h-2 rounded-full bg-red-400" />
+                <span className="text-gray-400">Dropoff: {dropoffCoords.lat.toFixed(5)}, {dropoffCoords.lng.toFixed(5)}</span>
+              </div>
+            )}
+            {distanceKm != null && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-blue-400 text-xs font-bold">Distance: {distanceKm} km</p>
+                {pricing?.pricePerKm && (
+                  <p className="text-gray-500 text-[10px] mt-0.5">
+                    KSh {pricing.pricePerKm}/km × {distanceKm} km = KSh {Math.ceil(distanceKm * pricing.pricePerKm)}
+                    {pricing.baseFare ? ` + KSh ${pricing.baseFare} base` : ''}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Zone</label>
+            <select
+              value={zoneId}
+              onChange={e => setZoneId(e.target.value)}
+              required
+              className="w-full bg-midnight-800 border border-midnight-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-haraka-500 transition-colors appearance-none"
+            >
+              <option value="" disabled>Select a zone</option>
+              {zones.map(z => (
+                <option key={z.id} value={z.id} className="bg-midnight-900">
+                  {z.name} — KSh {z.price}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Weight (kg) — optional</label>
@@ -309,11 +418,20 @@ export default function MtaaGoNewOrderPage() {
           )}
         </div>
 
-        {selectedZone && (
+        {((isDistanceMode && distanceKm != null) || (!isDistanceMode && selectedZone)) && (
           <div className="bg-midnight-800 border border-haraka-500/30 rounded-xl p-4 text-center">
             <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-1">Delivery Price</p>
             <p className="text-haraka-500 font-bold text-xl">KSh {totalPrice}</p>
-            {surcharge > 0 && <p className="text-[10px] text-gray-500 mt-1">Zone KSh {selectedZone.price} + Weight KSh {surcharge}</p>}
+            {isDistanceMode && distanceKm != null && pricing?.pricePerKm && (
+              <p className="text-[10px] text-gray-500 mt-1">
+                Base KSh {pricing.baseFare || 0} + ({distanceKm}km × KSh {pricing.pricePerKm}/km) {surcharge > 0 ? `+ Weight KSh ${surcharge}` : ''}
+              </p>
+            )}
+            {!isDistanceMode && selectedZone && (
+              <p className="text-[10px] text-gray-500 mt-1">
+                Zone KSh {selectedZone.price} {surcharge > 0 ? `+ Weight KSh ${surcharge}` : ''}
+              </p>
+            )}
             <p className="text-[10px] text-gray-500 mt-1">Order created at PRICED — confirm payment next</p>
           </div>
         )}
@@ -326,7 +444,7 @@ export default function MtaaGoNewOrderPage() {
 
         <button
           type="submit"
-          disabled={submitting || !zoneId}
+          disabled={submitting || !canSubmit}
           className="w-full bg-haraka-500 text-midnight-950 py-3.5 rounded-xl font-bold text-sm hover:bg-haraka-400 transition-colors active:scale-[0.98] disabled:opacity-50"
         >
           {submitting ? 'Creating...' : 'Create Order (PRICED)'}

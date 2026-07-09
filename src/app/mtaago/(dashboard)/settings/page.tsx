@@ -15,11 +15,44 @@ interface AuditLogEntry {
   user: { name: string | null; email: string };
 }
 
+interface PricingConfig {
+  pricingModel: string;
+  fuelPricePerLiter: number | null;
+  fuelConsumptionKmpl: number | null;
+  markupPercent: number;
+  pricePerKm: number | null;
+  baseFare: number;
+  minimumFare: number;
+}
+
 export default function MtaaGoSettingsPage() {
-  const { subRole, enterprise, loading: roleLoading } = useEnterprise();
+  const { subRole, enterprise, pricing: ctxPricing, loading: roleLoading } = useEnterprise();
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
+
+  const [pricingModel, setPricingModel] = useState('ZONE');
+  const [fuelPrice, setFuelPrice] = useState('');
+  const [consumption, setConsumption] = useState('');
+  const [markup, setMarkup] = useState('30');
+  const [baseFare, setBaseFare] = useState('0');
+  const [minimumFare, setMinimumFare] = useState('0');
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [pricingSaved, setPricingSaved] = useState(false);
+  const [pricingError, setPricingError] = useState('');
+
+  const isOwner = subRole === 'OWNER';
+
+  useEffect(() => {
+    if (ctxPricing) {
+      setPricingModel(ctxPricing.pricingModel || 'ZONE');
+      setFuelPrice(ctxPricing.fuelPricePerLiter?.toString() || '');
+      setConsumption(ctxPricing.fuelConsumptionKmpl?.toString() || '');
+      setMarkup(ctxPricing.markupPercent?.toString() || '30');
+      setBaseFare(ctxPricing.baseFare?.toString() || '0');
+      setMinimumFare(ctxPricing.minimumFare?.toString() || '0');
+    }
+  }, [ctxPricing]);
 
   const fetchAuditLogs = useCallback(async () => {
     try {
@@ -40,7 +73,42 @@ export default function MtaaGoSettingsPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const isOwner = subRole === 'OWNER';
+  const fuelNum = fuelPrice ? parseFloat(fuelPrice) : 0;
+  const consumptionNum = consumption ? parseFloat(consumption) : 0;
+  const markupNum = markup ? parseFloat(markup) : 30;
+  const derivedPricePerKm = (fuelNum > 0 && consumptionNum > 0)
+    ? Math.ceil((fuelNum / consumptionNum) * (1 + markupNum / 100))
+    : null;
+
+  const handleSavePricing = async () => {
+    setPricingSaving(true);
+    setPricingError('');
+    setPricingSaved(false);
+    try {
+      const res = await fetch('/api/enterprise/pricing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pricingModel,
+          fuelPricePerLiter: fuelNum || null,
+          fuelConsumptionKmpl: consumptionNum || null,
+          markupPercent: markupNum,
+          baseFare: parseInt(baseFare) || 0,
+          minimumFare: parseInt(minimumFare) || 0,
+        }),
+      });
+      if (res.ok) {
+        setPricingSaved(true);
+        setTimeout(() => setPricingSaved(false), 3000);
+      } else {
+        const data = await res.json();
+        setPricingError(data.error || 'Failed to save');
+      }
+    } catch {
+      setPricingError('Network error');
+    }
+    setPricingSaving(false);
+  };
 
   if (roleLoading || loading) {
     return (
@@ -74,7 +142,7 @@ export default function MtaaGoSettingsPage() {
         </div>
       </div>
 
-      <div className={isOwner ? 'bg-midnight-800 border border-midnight-700 rounded-xl overflow-hidden' : 'bg-midnight-800 border border-midnight-700 rounded-xl overflow-hidden'}>
+      <div className="bg-midnight-800 border border-midnight-700 rounded-xl overflow-hidden">
         <div className="flex justify-between items-center px-4 py-3 border-b border-midnight-700">
           <div>
             <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Rate per Delivery</p>
@@ -122,6 +190,178 @@ export default function MtaaGoSettingsPage() {
           </button>
         </div>
       </div>
+
+      {isOwner && (
+        <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Pricing Configuration</p>
+              <p className="text-gray-400 text-[10px] mt-0.5">Configure how delivery prices are calculated</p>
+            </div>
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border ${
+              pricingModel === 'DISTANCE'
+                ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                : 'bg-green-500/15 text-green-400 border-green-500/30'
+            }`}>
+              {pricingModel}
+            </span>
+          </div>
+
+          <div>
+            <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Pricing Model</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPricingModel('ZONE')}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+                  pricingModel === 'ZONE'
+                    ? 'bg-midnight-700 border-2 border-green-500 text-green-400'
+                    : 'bg-midnight-800 border border-midnight-700 text-gray-400'
+                }`}
+              >
+                Zone-Based
+              </button>
+              <button
+                type="button"
+                onClick={() => setPricingModel('DISTANCE')}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+                  pricingModel === 'DISTANCE'
+                    ? 'bg-midnight-700 border-2 border-blue-500 text-blue-400'
+                    : 'bg-midnight-800 border border-midnight-700 text-gray-400'
+                }`}
+              >
+                Distance-Based
+              </button>
+            </div>
+          </div>
+
+          {pricingModel === 'DISTANCE' && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Fuel Price (KSh/L)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={fuelPrice}
+                    onChange={e => setFuelPrice(e.target.value)}
+                    className="w-full bg-midnight-900 border border-midnight-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-haraka-500 transition-colors"
+                    placeholder="e.g. 186"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Consumption (km/L)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={consumption}
+                    onChange={e => setConsumption(e.target.value)}
+                    className="w-full bg-midnight-900 border border-midnight-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-haraka-500 transition-colors"
+                    placeholder="e.g. 15"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Markup (%)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={markup}
+                    onChange={e => setMarkup(e.target.value)}
+                    className="w-full bg-midnight-900 border border-midnight-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-haraka-500 transition-colors"
+                    placeholder="30"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Base Fare (KSh)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={baseFare}
+                    onChange={e => setBaseFare(e.target.value)}
+                    className="w-full bg-midnight-900 border border-midnight-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-haraka-500 transition-colors"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-500 uppercase tracking-wider font-bold block mb-1.5">Minimum (KSh)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={minimumFare}
+                    onChange={e => setMinimumFare(e.target.value)}
+                    className="w-full bg-midnight-900 border border-midnight-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-haraka-500 transition-colors"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {derivedPricePerKm != null && derivedPricePerKm > 0 && (
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-center">
+                  <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-1">Derived Rate</p>
+                  <p className="text-blue-400 font-bold text-xl">KSh {derivedPricePerKm}/km</p>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    {fuelNum} ÷ {consumptionNum} = KSh {(fuelNum / consumptionNum).toFixed(2)}/km cost → with {markupNum}% markup
+                  </p>
+                  {baseFare && parseInt(baseFare) > 0 && (
+                    <p className="text-[10px] text-gray-500">+ KSh {baseFare} base fare per order</p>
+                  )}
+                  {minimumFare && parseInt(minimumFare) > 0 && (
+                    <p className="text-[10px] text-gray-500">Minimum: KSh {minimumFare}</p>
+                  )}
+                </div>
+              )}
+
+              {fuelNum > 0 && consumptionNum > 0 && (
+                <div className="bg-midnight-900 border border-midnight-700 rounded-xl p-4">
+                  <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-2">Example Orders</p>
+                  <div className="space-y-2">
+                    {[
+                      { km: 5, label: 'Short (5km)' },
+                      { km: 15, label: 'Medium (15km)' },
+                      { km: 30, label: 'Long (30km)' },
+                    ].map(ex => (
+                      <div key={ex.km} className="flex items-center justify-between">
+                        <span className="text-gray-400 text-[10px]">{ex.label}</span>
+                        <span className="text-white text-xs font-bold">
+                          KSh {derivedPricePerKm ? Math.max((parseInt(baseFare) || 0) + Math.ceil(ex.km * derivedPricePerKm), parseInt(minimumFare) || 0) : '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {pricingError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+              <p className="text-red-400 text-xs font-semibold">{pricingError}</p>
+            </div>
+          )}
+
+          {pricingSaved && (
+            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
+              <p className="text-green-400 text-xs font-semibold">Pricing saved successfully</p>
+            </div>
+          )}
+
+          <button
+            onClick={handleSavePricing}
+            disabled={pricingSaving}
+            className="w-full bg-haraka-500 text-midnight-950 py-3 rounded-xl font-bold text-sm hover:bg-haraka-400 transition-colors active:scale-[0.98] disabled:opacity-50"
+          >
+            {pricingSaving ? 'Saving...' : 'Save Pricing Config'}
+          </button>
+        </div>
+      )}
 
       <div className="bg-midnight-800 border border-midnight-700 rounded-xl p-5 space-y-3">
         <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Recent Activity</p>

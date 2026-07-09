@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sanitizedErrorResponse } from '@/lib/api-error';
+import { haversineKm, calculateDeliveryPrice } from '@/lib/distance';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -78,9 +79,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { errandDescription, pickupLocation, dropoffLocation, contactPhone, specialInstructions, urgency, zoneId, customerName, weightKg } = body;
+    const {
+      errandDescription, pickupLocation, dropoffLocation, contactPhone,
+      specialInstructions, urgency, zoneId, customerName, weightKg,
+      pickupLat, pickupLng, dropoffLat, dropoffLng,
+    } = body;
 
-    if (!errandDescription || !pickupLocation || !dropoffLocation || !contactPhone || !zoneId) {
+    if (!errandDescription || !pickupLocation || !dropoffLocation || !contactPhone) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -91,11 +96,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Enterprise client not found' }, { status: 404 });
     }
 
-    const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
-    if (!zone) {
-      return NextResponse.json({ error: 'Zone not found' }, { status: 400 });
-    }
-
     let weightSurcharge = 0;
     const w = weightKg ? Number(weightKg) : 0;
     if (w > 100) weightSurcharge = 0;
@@ -103,7 +103,39 @@ export async function POST(req: Request) {
     else if (w > 20) weightSurcharge = 250;
     else if (w > 5) weightSurcharge = 100;
 
-    const totalAmount = zone.price + weightSurcharge;
+    let totalAmount = 0;
+    let distanceKm: number | null = null;
+    let pricePerKmSnapshot: number | null = null;
+    let resolvedZoneId: string | null = zoneId || null;
+
+    if (client.pricingModel === 'DISTANCE') {
+      if (pickupLat == null || pickupLng == null || dropoffLat == null || dropoffLng == null) {
+        return NextResponse.json({ error: 'Distance mode requires pickupLat, pickupLng, dropoffLat, dropoffLng' }, { status: 400 });
+      }
+      if (!client.pricePerKm) {
+        return NextResponse.json({ error: 'Pricing not configured — owner must set fuel price and consumption' }, { status: 400 });
+      }
+
+      distanceKm = haversineKm(Number(pickupLat), Number(pickupLng), Number(dropoffLat), Number(dropoffLng));
+      pricePerKmSnapshot = client.pricePerKm;
+      totalAmount = calculateDeliveryPrice({
+        distanceKm,
+        pricePerKm: client.pricePerKm,
+        baseFare: client.baseFare,
+        minimumFare: client.minimumFare,
+        weightSurcharge,
+      });
+      resolvedZoneId = null;
+    } else {
+      if (!zoneId) {
+        return NextResponse.json({ error: 'Zone mode requires zoneId' }, { status: 400 });
+      }
+      const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+      if (!zone) {
+        return NextResponse.json({ error: 'Zone not found' }, { status: 400 });
+      }
+      totalAmount = zone.price + weightSurcharge;
+    }
 
     const order = await prisma.order.create({
       data: {
@@ -113,7 +145,7 @@ export async function POST(req: Request) {
         contactPhone,
         specialInstructions: specialInstructions || null,
         urgency: urgency || 'NORMAL',
-        zoneId,
+        zoneId: resolvedZoneId,
         vendorId: session.user.id,
         enterpriseClientId: client.id,
         customerId: session.user.id,
@@ -123,6 +155,12 @@ export async function POST(req: Request) {
         totalAmount,
         weightKg: weightKg ? Number(weightKg) : null,
         weightSurcharge,
+        pickupLat: pickupLat ? Number(pickupLat) : null,
+        pickupLng: pickupLng ? Number(pickupLng) : null,
+        dropoffLat: dropoffLat ? Number(dropoffLat) : null,
+        dropoffLng: dropoffLng ? Number(dropoffLng) : null,
+        distanceKm: distanceKm ? Math.round(distanceKm * 100) / 100 : null,
+        pricePerKmSnapshot,
       },
     });
 
@@ -141,7 +179,9 @@ export async function POST(req: Request) {
         action: 'CREATE_ORDER',
         entityType: 'ORDER',
         entityId: order.id,
-        details: `Created order KSh ${totalAmount} — ${errandDescription.slice(0, 80)}`,
+        details: client.pricingModel === 'DISTANCE'
+          ? `Created order KSh ${totalAmount} — ${distanceKm?.toFixed(1)}km × KSh ${pricePerKmSnapshot}/km — ${errandDescription.slice(0, 60)}`
+          : `Created order KSh ${totalAmount} — ${errandDescription.slice(0, 80)}`,
       },
     });
 

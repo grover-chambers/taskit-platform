@@ -217,8 +217,8 @@ export async function PATCH(
 
         const existingEarning = await tx.riderEarning.findUnique({ where: { orderId: order.id } });
         if (!existingEarning) {
-          const zone = await tx.zone.findUnique({ where: { id: order.zoneId } });
-          const earning = zone ? Math.round(zone.price * 0.7) : 100;
+          const zone = order.zoneId ? await tx.zone.findUnique({ where: { id: order.zoneId } }) : null;
+          const earning = zone ? Math.round(zone.price * 0.7) : Math.round(order.totalAmount * 0.7) || 100;
 
           const payout = await tx.payout.create({
             data: {
